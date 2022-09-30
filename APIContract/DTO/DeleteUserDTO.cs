@@ -1,5 +1,5 @@
-namespace APIContract;
+namespace APIContract.DTO;
 
 public class DeleteUserDTO {
-    public string userId { get; set; }
+    public string UserId { get; set; }
 }

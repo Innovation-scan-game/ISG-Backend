@@ -1,4 +1,5 @@
 using System;
+using APIContract.DTO;
 
 namespace APIContract;
 

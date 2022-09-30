@@ -1,7 +1,7 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 public class CardResponseDTO {
-    public string sessionAuth { get; set; }
-    public int cardNumber { get; set; }
-    public string responseText { get; set; }
+    public string SessionAuth { get; set; }
+    public int CardNumber { get; set; }
+    public string ResponseText { get; set; }
 }

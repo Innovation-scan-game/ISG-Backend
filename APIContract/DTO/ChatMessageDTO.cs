@@ -1,6 +1,6 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 class ChatMessageDTO {
-    public int cardNumber { get; set; }
-    public string content { get; set; }
+    public int CardNumber { get; set; }
+    public string Content { get; set; }
 }

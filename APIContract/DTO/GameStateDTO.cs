@@ -1,21 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace APIContract {
+namespace APIContract.DTO;
 
-    public class GameStateDTO
-    {
-        public int gameRound { get; set; }
-        public CardDTO[] cards { get; set; }
-        public int playerCount { get; set; }
-    }
-
-
-
-
-
-
+public class GameStateDTO
+{
+    public int GameRound { get; set; }
+    public CardDTO[] Cards { get; set; }
+    public int PlayerCount { get; set; }
 }

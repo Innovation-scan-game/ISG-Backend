@@ -1,5 +1,5 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 public class EmojiDTO {
-    public string text { get; set; }
+    public string Text { get; set; }
 }

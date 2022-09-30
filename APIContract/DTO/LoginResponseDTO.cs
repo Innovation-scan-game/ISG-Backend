@@ -1,6 +1,5 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 internal class LoginResponseDTO {
-    public string authToken { get; set; }
+    public string AuthToken { get; set; }
 }
-

@@ -1,5 +1,5 @@
-namespace APIContract;
+namespace APIContract.DTO;
 
 public class JoinRequestDTO {
-    public string sessionAuth { get; set; }
+    public string SessionAuth { get; set; }
 }

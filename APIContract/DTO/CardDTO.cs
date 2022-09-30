@@ -1,8 +1,12 @@
-﻿namespace APIContract;
+﻿using System;
 
-public class CardDTO {
-    public int cardNumber { get; set; }
-    public string cardName { get; set; }
-    public string cardBody { get; set; }
-    public string cardType { get; set; }
+namespace APIContract.DTO;
+
+public class CardDTO
+{
+    public Guid ID;
+    public int CardNumber { get; set; }
+    public string CardName { get; set; }
+    public string CardBody { get; set; }
+    public CardTypeEnum CardType { get; set; }
 }

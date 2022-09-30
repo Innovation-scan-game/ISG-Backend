@@ -1,4 +1,4 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 public class CardListDTO {
-    public CardDTO[] cards { get; set; }
+    public CardDTO[] Cards { get; set; }
 }

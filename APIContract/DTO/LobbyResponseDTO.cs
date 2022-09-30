@@ -1,6 +1,5 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 public class LobbyResponseDTO {
-    public string sessionAuth { get; set; }
+    public string SessionAuth { get; set; }
 }
-

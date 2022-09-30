@@ -1,6 +1,8 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 public class UserDTO {
-    public string username { get; set; }
-    public string email { get; set; }
+    public string Username { get; set; }
+    public string Email { get; set; }
+    public UserRoleEnum Role { get; set; }
+
 }

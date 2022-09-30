@@ -1,6 +1,6 @@
-﻿namespace APIContract;
+﻿namespace APIContract.DTO;
 
 public class GameSettingsDTO {
-    public int roundDuration { get; set; }
-    public int totalRounds { get; set; }
+    public int RoundDuration { get; set; }
+    public int TotalRounds { get; set; }
 }
