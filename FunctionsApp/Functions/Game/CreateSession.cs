@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using DAL.Data;
 using Domain.Models;
-using FunctionsApp.DTO.GameSessionDTOs;
+using IsolatedFunctions.DTO.GameSessionDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -27,6 +27,6 @@ public class CreateSession
         GameSession session = GameSession.New();
         _context.GameSessions.Add(session);
         await _context.SaveChangesAsync();
-        return new OkObjectResult(new LobbyResponseDTO {SessionAuth = session.SessionCode});
+        return new OkObjectResult(new LobbyResponseDto {SessionAuth = session.SessionCode});
     }
 }

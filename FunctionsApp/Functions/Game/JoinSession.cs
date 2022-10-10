@@ -1,13 +1,11 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 using DAL.Data;
-using FunctionsApp.DTO.GameSessionDTOs;
+using IsolatedFunctions.DTO.GameSessionDTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Azure.WebJobs.Host;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -30,8 +28,8 @@ public class JoinSession
     {
         try
         {
-            JoinRequestDTO joinRequestDto =
-                JsonConvert.DeserializeObject<JoinRequestDTO>(await new StreamReader(req.Body).ReadToEndAsync());
+            JoinRequestDto joinRequestDto =
+                JsonConvert.DeserializeObject<JoinRequestDto>(await new StreamReader(req.Body).ReadToEndAsync());
 
             var session = await _context.GameSessions.FirstOrDefaultAsync(session => session.SessionCode == joinRequestDto.SessionAuth);
 

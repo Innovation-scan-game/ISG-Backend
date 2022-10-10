@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using DAL.Data;
 using Domain.Models;
-using FunctionsApp.DTO.UserDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -27,7 +27,7 @@ public class GetUser
     [FunctionName("userInfo")]
     [OpenApiOperation(operationId: "UserInfo", tags: new[] {"user"}, Summary = "Gets user info",
         Description = "Gets information about user by user ID")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDTO))]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto))]
     public async Task<IActionResult> UserInfo([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "userInfo/{id}")] HttpRequest req,
         string id)
     {
@@ -42,7 +42,7 @@ public class GetUser
             return new NotFoundObjectResult("User not found");
         }
 
-        UserDTO dto = _mapper.Map<UserDTO>(u);
+        UserDto dto = _mapper.Map<UserDto>(u);
         return new OkObjectResult(dto);
     }
 }

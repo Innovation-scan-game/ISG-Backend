@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Innovation Game Web App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css">
+    <script>
+        window.apiBaseUrl = window.location.origin;
+    </script>
+</head>
+<body>
+<h2>Innovation Game Prototype</h2>
+
+<div id="app">
+
+    <div class="login" v-if="$store.state.status==='default'">
+        <h3>Login</h3>
+        <form @submit.prevent="login">
+            <input autofocus type="text" v-model="userLogin.username" id="username" class="form-control" placeholder="Username"/>
+            <input type="password" v-model="userLogin.password" id="password" class="form-control" placeholder="Password"/>
+            <button style="tab-index: 0;" class="btn btn-primary" @submit>Login</button>
+        </form>
+
+
+        <p>Don't have an account yet? <a href="#" v-on:click="$store.commit('setStatus','createAccount')">Create</a> one now!</p>
+    </div>
+
+    <div class="createAccount" v-if="$store.state.status==='createAccount'">
+        <h3>Create Account</h3>
+        <form @submit.prevent="createAccount">
+            <input type="text" v-model="userCreate.username" class="form-control" placeholder="Username"/>
+            <input type="text" v-model="userCreate.email" class="form-control" placeholder="Email"/>
+            <input type="password" v-model="userCreate.password" class="form-control" placeholder="Password"/>
+            <button class="btn btn-primary" @submit.prevent>Create Account</button>
+            <button class="btn btn-secondary" v-on:click.prevent="$store.commit('setStatus','default')">Cancel</button>
+        </form>
+
+    </div>
+
+    <div class="menu" v-if="$store.state.status==='menu'">
+
+        <div class="buttons">
+            <button class="btn btn-primary" v-on:click="createLobby">Create Lobby</button>
+            <button class="btn btn-primary" v-on:click="$store.commit('setStatus','join')">Join Lobby</button>
+            <button class="btn btn-primary" v-on:click="logout">Logout</button>
+        </div>
+    </div>
+
+    <div class="lobby" v-if="$store.state.status==='lobby'">
+        <div class="content">
+            <h3>Lobby</h3>
+            <h1 class="sessionCode">{{$store.state.lobbyData.sessionCode}}</h1>
+            <div class="player" v-for="player in $store.state.lobbyData.players">
+                <p>{{player.username}}</p>
+                <p v-if="player.ready===true">ready</p>
+                <p v-else>not ready</p>
+            </div>
+        </div>
+
+        <div class="options" v-if="toggleOptions">
+            <h4>Options</h4>
+            <form>
+                <label>
+                    Number of Rounds
+                    <input type="number" v-model="options.rounds" max="99" class="form-control" placeholder="rounds"/>
+                </label>
+                <label>
+                    Round duration
+                    <input type="number" v-model="options.duration" max="3600" class="form-control" placeholder="duration"/>
+                </label>
+            </form>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-success" v-on:click="changeReadyState">Ready</button>
+            </button>
+            <button v-if="isHost" v-on:click="toggleOptions=!toggleOptions" class="btn btn-primary">Options</button>
+
+
+            <button class="btn btn-secondary" v-on:click="leaveLobby">Leave</button>
+            <button v-if="isHost" :disabled="!allReady" class="btn btn-primary" v-on:click="startGame">Start Game</button>
+
+        </div>
+    </div>
+
+    <div class="join" v-if="$store.state.status==='join'">
+        <h3>Join a Game</h3>
+        <form @submit.prevent="joinLobby">
+
+            <input type="text" v-model="sessionCode" id="lobbyId" class="form-control" placeholder="Lobby ID"/>
+            <button class="btn btn-primary" v-on:click="submitJoin">Join</button>
+            <button class="btn btn-secondary" v-on:click="$store.commit('setStatus','menu')">Back</button>
+        </form>
+    </div>
+
+    <div class="game" v-if="$store.state.status==='game'">
+        <div class="infos">
+            <span v-if="connection === null" class="badge bg-danger">Lost Connection</span>
+        </div>
+        <div class="infos">
+            <p>Round {{$store.state.gameInfo.currentRound + 1}}/{{$store.state.gameInfo.rounds}}</p>
+            <p>{{$store.state.lobbyData.players.length}} Player(s)</p>
+        </div>
+
+        <div class="content" v-if="$store.state.answerSubmitted===false">
+            <div class="card">
+                <h2>{{$store.state.gameInfo.cards[$store.state.gameInfo.currentRound].cardName}}</h2>
+                <p>{{$store.state.gameInfo.cards[$store.state.gameInfo.currentRound].cardBody}}</p>
+            </div>
+            <div class="buttons">
+                <textarea v-model="answer" placeholder="Your Answer"></textarea>
+                <button :disabled="answer.length===0" class="btn btn-primary" v-on:click="submitCard">Submit</button>
+            </div>
+        </div>
+
+        <div v-else class="chat">
+            <div class="top">
+                <div class="chatinfo">
+                    <h3>
+                        {{$store.state.answers.length !== $store.state.lobbyData.players.length ? 'Question in progress' : 'Card finished'}}</h3>
+                    <p>{{$store.state.answers.length}}/{{$store.state.lobbyData.players.length}} answers submitted</p>
+                </div>
+                <div class="answer" v-for="answer in $store.state.answers">
+
+                    <h4>{{answer.user.username}}:</h4>
+                    <p>{{answer.answer}}</p>
+
+                </div>
+            </div>
+            <h4>Discussion</h4>
+            <div class="messages">
+                <div class="message_container" ref="messageContainer" :class="$store.state.userId !== message.user.id ? 'right': ''"
+                     v-for="message in filterMessages($store.state.messages, $store.state.gameInfo.currentRound)">
+
+                    <p class="message" :class="$store.state.userId === message.user.id ? 'send' : 'received'">
+                        {{message.message}}
+                    </p>
+                    <p v-if="$store.state.userId !== message.user.id">{{message.user.username}}</p>
+                </div>
+            </div>
+            <div class="buttons">
+                <textarea v-model="message" placeholder="Chat message">
+
+                </textarea>
+                <button :disabled="message.length===0" v-on:click="sendMessage" class="btn btn-primary">Send</button>
+                <button v-if="isHost && $store.state.gameInfo.currentRound+1<$store.state.gameInfo.rounds" v-on:click="nextRound"
+                        class="btn btn-secondary">Next
+                    Round
+                </button>
+
+                <button v-else-if="isHost" class="btn btn-secondary" v-on:click="endGame">End Game</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content endscreen" v-if="$store.state.status==='end'">
+        <h1>Thanks for playing!</h1>
+        <button class="btn btn-primary" v-on:click="$store.commit('setStatus','menu')">Back to menu</button>
+    </div>
+
+</div>
+
+<footer>© 2022 InHolland Project Group 12</footer>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.7.10/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuex@3.6.2/dist/vuex.min.js"></script>
+<script src="https://unpkg.com/vuex-persistedstate/dist/vuex-persistedstate.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@6.0.9/dist/browser/signalr.min.js"></script>
+
+<script>
+
+    const store = new Vuex.Store(
+        {
+            plugins: [createPersistedState({
+                storage: window.sessionStorage,
+            })],
+            state: {
+                jwt: "",
+                status: "default",
+                lobbyData: {},
+                gameInfo: {},
+                userId: "",
+                answers: [],
+                messages: [],
+                answerSubmitted: false,
+            },
+            mutations: {
+
+                setJwt(state, jwt) {
+                    state.jwt = jwt;
+                },
+                setStatus(state, status) {
+                    state.status = status;
+                },
+                setLobbyData(state, lobbyData) {
+                    state.lobbyData = lobbyData;
+                },
+                addPlayer(state, player) {
+                    state.lobbyData.players.push(player);
+                },
+                removePlayer(state, player) {
+                    state.lobbyData.players.pop(player);
+                },
+                updatePlayer(state, player) {
+                    state.lobbyData.players.find(p => p.id === player.id).ready = player.ready;
+                },
+
+                setUserId(state, userId) {
+                    state.userId = userId;
+                },
+                addAnswer(state, answer) {
+                    state.answers.push(answer);
+                },
+                setAnswers(state, answers) {
+                    state.answers = answers;
+                },
+                setGameInfo(state, gameInfo) {
+                    state.gameInfo = gameInfo;
+                },
+                increaseRound(state) {
+                    state.gameInfo.currentRound++;
+                },
+                addMessage(state, message) {
+                    state.messages.push(message);
+                },
+                setMessages(state, messages) {
+                    state.messages = messages;
+                },
+                setAnswerSubmitted(state, answerSubmitted) {
+                    state.answerSubmitted = answerSubmitted;
+                }
+            }
+        });
+
+    const baseUrl = window.location.origin;
+    // const baseUrl = "http://localhost:7071";
+    var jwt = "";
+    const data = {
+        options: {
+            rounds: "3",
+            duration: "120"
+        },
+        userLogin: {},
+        userCreate: {},
+        signalGroup: "",
+        "baseUrl": baseUrl,
+        connection: null,
+        conId: "",
+        isReady: false,
+        sessionCode: "",
+        answer: "",
+        message: "",
+        toggleOptions: false,
+    };
+    const app = new Vue({
+        el: '#app',
+        "data": data,
+        "store": store,
+        computed: {
+            isHost() {
+                return store.state.lobbyData.hostId === store.state.userId
+            },
+            allReady() {
+                return store.state.lobbyData.players.every(p => p.ready)
+            },
+
+        },
+
+        mounted() {
+            if (store.state.jwt !== "" && store.state.status === "default") {
+                store.commit("setStatus", "menu");
+            }
+            if (store.state.status === "lobby" || store.state.status === "game" && data.connection === null) {
+
+                data.isReady = store.state.lobbyData.players.find(p => p.id === store.state.userId).ready;
+                console.log("recreate connection", this.baseUrl, store.state.jwt, data.connection)
+                data.connection = createConnection(store.state.jwt, this.baseUrl)
+            }
+        },
+
+        // scroll to bottom of chat, if a new message is added
+        watch: {
+            '$store.state.messages': function (newMessages) {
+                if (newMessages.length > 0) {
+                    this.$nextTick(() => {
+                        const mContainer = this.$refs.messageContainer;
+                        if (mContainer && mContainer.length > 0) {
+                            mContainer[mContainer.length - 1].scrollIntoView({behavior: "smooth"});
+                        }
+                    })
+                }
+            }
+        },
+        methods: {
+
+            // Filter messages by round
+            filterMessages(arr, round) {
+                // console.log("filterMessages", arr, round)
+                return arr.filter(message => message.round === round)
+            },
+            login: async function () {
+                await postRequest("/api/login", this.userLogin)
+                    .then(response => response.json())
+                    .then(data => {
+                        store.commit("setJwt", data.accessToken);
+                        this.userLogin = {};
+                        jwt = data.accessToken;
+                        this.jwt = data.accessToken;
+                        store.commit("setUserId", data.userId);
+                        store.commit("setStatus", "menu");
+                    })
+                    .catch(error => console.error(error));
+                console.log("login")
+            },
+
+            createAccount: async function () {
+                await postRequest("/api/createUser", this.userCreate)
+                    .then(response => response.json())
+
+                    .then(data => {
+                        console.log("create data:", data, response);
+                        if (data === "User already exists") {
+                            console.log(data);
+                        } else {
+                            this.userCreate = {};
+                            store.commit("setStatus", "default");
+                            this.userLogin.username = data.username;
+                            this.userLogin.password = data.password;
+                        }
+
+                    })
+                    .catch(error => console.error(error));
+            },
+
+            createLobby: async function () {
+                await postRequest("/api/createSession")
+                    .then(response => response.json())
+                    .then(data => {
+                        store.commit("setLobbyData", data);
+
+                    })
+                store.commit("setStatus", "lobby");
+                this.connection = createConnection(store.state.jwt, this.baseUrl)
+            },
+            leaveLobby: async function () {
+                await postRequest("/api/session/leave");
+                store.commit("setStatus", "menu");
+                store.commit("setLobbyData", {});
+                this.isReady = false;
+                if (this.connection !== null) {
+                    this.connection.stop();
+                    this.connection = null;
+                }
+            },
+            submitJoin: async function () {
+                await postRequest("/api/session/join", {"sessionAuth": this.sessionCode})
+                    .then(response => response.json())
+                    .then(data => {
+                        store.commit("setLobbyData", data);
+                    });
+                store.commit("setStatus", "lobby");
+                this.connection = createConnection(this.jwt, this.baseUrl)
+            },
+
+            submitCard: async function () {
+                if (this.answer.length > 0) {
+                    await postRequest("/api/session/submit", {"answer": this.answer})
+                        .then(response => response.json())
+                        .catch(error => console.error("submit error", error))
+                        .then((data) => {
+                            console.log("submit data", data)
+                            store.commit("setAnswerSubmitted", true);
+                            this.answer = "";
+                        });
+                }
+            },
+
+            sendMessage: async function () {
+                if (this.message.length > 0) {
+                    await postRequest("/api/session/message", {"message": this.message})
+                        .then(() => {
+                            this.message = "";
+                        });
+                }
+            },
+
+            nextRound: async function () {
+
+                await postRequest("/api/session/next")
+                    .catch(error => console.error("nextRound error:", error));
+            },
+
+            endGame: async function () {
+                await postRequest("/api/session/end")
+                    .catch(error => console.error("endGame error:", error));
+            },
+
+            changeReadyState: async function () {
+                data.isReady = !data.isReady;
+                await postRequest("/api/session/ready", {"ready": data.isReady})
+                    .catch(error => console.error("changeReadyState error:", error));
+            },
+
+            startGame: async function () {
+                await postRequest("/api/session/start", {
+                    rounds: parseInt(this.options.rounds),
+                    roundDuration: parseInt(this.options.duration)
+                })
+                    .catch(error => console.error("startGame error:", error));
+                data.toggleOptions = false;
+            },
+
+            logout: function () {
+                store.commit("setStatus", "default");
+                store.commit("setJwt", "");
+                store.commit("setUserId", "");
+            }
+        }
+    });
+
+    function createConnection(jwt, baseUrl) {
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl(baseUrl + "/api", {logger: signalR.LogLevel.Information})
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+
+        // SignalR message callbacks
+        connection.on('newConnection', async (id) => {
+            console.log("new connection", id)
+            this.conId = id;
+            await postRequest("/api/joinGrp", {"connectionId": id})
+                .catch(error => console.error(error));
+
+        });
+        connection.on('newMessage', onNewMessage);
+        connection.on("readyStateChanged", onReadyStateChanged);
+        connection.on("newPlayer", onNewPlayer);
+        connection.on("playerLeft", onPlayerLeft);
+        connection.on("startGame", onStartGame);
+        connection.on("newAnswer", onNewAnswer);
+        connection.on("nextRound", onNextRound);
+        connection.on("endSession", onEndSession);
+
+        connection.onclose(() => {
+            console.log('disconnected')
+            data.connection = null;
+        });
+        connection.start();
+        console.log("connection started", connection)
+        return connection;
+    }
+
+
+    function onNewMessage(user, round, message) {
+        store.commit("addMessage", {"user": user, "round": round, "message": message});
+    }
+
+    function onReadyStateChanged(user) {
+        store.commit("updatePlayer", user);
+    }
+
+    function onNewPlayer(user) {
+        console.log("NEW PLAYER JOINED", user)
+        if (store.state.lobbyData.players.find(u => u.id === user.id) === undefined) {
+            store.commit("addPlayer", user)
+        }
+    }
+
+    function onPlayerLeft(user) {
+
+        // Host left, so return to main menu
+        if (user.id === store.state.lobbyData.hostId) {
+            store.commit("setStatus", "menu")
+            store.commit("setLobbyData", {})
+            if (data.connection !== null) {
+                data.connection.stop();
+            }
+        }
+        // A player left; remove them from lobbyData
+        else {
+            store.commit("removePlayer", user)
+        }
+    }
+
+    function onStartGame(gameInfo) {
+        console.log("onstart game", gameInfo.cards.length)
+        gameInfo.rounds = gameInfo.cards.length;
+        gameInfo.currentRound = 0;
+        store.commit("setGameInfo", gameInfo);
+        store.commit("setStatus", "game")
+    }
+
+    function onNewAnswer(user, answer) {
+        console.log("new answer", answer)
+        store.commit("addAnswer", {"user": user, "answer": answer});
+    }
+
+    function onNextRound() {
+        store.commit("increaseRound")
+        store.commit("setAnswers", []);
+        store.commit("setAnswerSubmitted", false);
+        data.answer = "";
+        data.message = "";
+    }
+
+    function onEndSession() {
+        store.commit("setStatus", "end");
+        resetState();
+    }
+
+    function resetState() {
+        store.commit("setAnswers", []);
+        store.commit("setMessages", []);
+        data.answer = "";
+        data.message = "";
+        data.isReady = false;
+        store.commit("setAnswerSubmitted", false);
+        store.commit("setLobbyData", {});
+        store.commit("setGameInfo", {});
+        data.connection.stop();
+        data.connection = null;
+        data.conId = null;
+    }
+
+    // Helper function to not have to type out the headers every time.
+    async function postRequest(route, data = {}) {
+        console.log("POST request", baseUrl, route)
+        const headers = {'Content-Type': 'application/json'}
+        if (store.state.jwt !== "") {
+            console.log("using auth")
+            headers['Authorization'] = `Bearer ${store.state.jwt}`
+        }
+        return fetch(baseUrl + route, {
+            method: 'POST',
+            "headers": headers,
+            body: JSON.stringify(data)
+        })
+    }
+
+</script>
+</body>
+</html>
+<style>
+    body {
+        font-family: Helvetica, Segoe UI, Arial, sans-serif;
+        background: #e5e5e5;
+    }
+
+    footer {
+        position: absolute;
+        bottom: 2px;
+        left: 5px;
+    }
+
+    #app {
+        z-index: 2;
+        margin: 0 auto;
+        padding: .75rem;
+        width: 75vw;
+        min-width: 275px;
+        max-width: 500px;
+        aspect-ratio: .55;
+        background-color: #303030;
+        display: flex;
+        flex-direction: column;
+        color: white;
+    }
+
+    span.badge {
+        line-height: unset;
+    }
+
+    form {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .createAccount form input {
+        flex-grow: 1;
+        /*width: 100%;*/
+    }
+
+
+    form label {
+        flex-grow: 1;
+        /*margin: 1rem;*/
+        /*width: 50%;*/
+    }
+
+    .lobby, .menu, .game, .endscreen, .login, .createAccount {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+
+    .login button {
+        margin-bottom: 1rem;
+    }
+
+    .endscreen h1, .endscreen button {
+        margin: 1rem;
+    }
+
+    .game {
+        flex-grow: 1;
+    }
+
+    .content {
+        flex-grow: 1;
+    }
+
+    .game .content {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .player {
+        background-color: rgb(13, 110, 253);
+        height: 3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+    }
+
+    .player p {
+        margin: 0;
+
+    }
+
+    .buttons {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-self: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .buttons button, form button {
+        flex-grow: 1;
+        flex-basis: auto;
+        min-width: 30%;
+    }
+
+
+    .sessionCode {
+        font-size: 5rem;
+        color: firebrick;
+        text-align: center;
+    }
+
+    h2 {
+        text-align: center;
+    }
+
+    .game .buttons {
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    .game .buttons textarea {
+        flex-grow: 1;
+        resize: none;
+        border-radius: 5px;
+        padding: .33rem;
+    }
+
+    .menu .buttons {
+        flex-direction: column;
+        flex-grow: 1;
+        justify-content: center;
+    }
+
+    .menu .buttons button {
+        flex-grow: 0;
+        margin-bottom: 2rem;
+    }
+
+    .options {
+        margin-bottom: .5rem;
+    }
+
+    .card {
+        padding-top: .5rem;
+        aspect-ratio: 3/4;
+        width: 100%;
+        background-color: gainsboro;
+        color: black;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+
+        border: 2px solid rgba(0, 0, 0, 0.5);
+    }
+
+    .card h2 {
+        text-align: center;
+        font-size: 2rem;
+    }
+
+    .card p {
+        margin: .25rem 1rem;
+        font-size: 1.5rem;
+    }
+
+    .infos {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: .75rem;
+    }
+
+    .infos p {
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+
+    .chatinfo, .answer {
+        padding: .5rem;
+        color: black;
+        border-radius: 5px;
+        background-color: lightgrey;
+    }
+
+    .answer {
+        margin-top: 1rem;
+    }
+
+    .chat {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    .chat h4, .chat p {
+        margin: 0;
+    }
+
+    .chat .buttons {
+        flex-grow: 0;
+    }
+
+    .messages {
+        aspect-ratio: 2/1;
+        display: block;
+        flex-grow: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .message {
+        max-width: 255px;
+        word-wrap: break-word;
+        margin-bottom: 12px;
+        line-height: 24px;
+        position: relative;
+        padding: 10px 20px;
+        border-radius: 25px;
+    }
+
+    .message:before,
+    .message:after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        height: 25px;
+    }
+
+    .chat .send {
+        color: black;
+        background-color: #ebebeb;
+        align-self: flex-start;
+        flex-direction: column-reverse;
+    }
+
+    .chat .received {
+        color: white;
+        background: #0B93F6;
+        align-self: flex-end;
+        margin-right: .5rem;
+    }
+
+    .received:before {
+        right: -7px;
+        width: 20px;
+        background-color: #0B93F6;
+        border-bottom-left-radius: 16px 14px;
+    }
+
+    .received:after {
+        right: -26px;
+        width: 26px;
+        background-color: #181818;
+        border-bottom-left-radius: 10px;
+    }
+
+    .top {
+        flex-grow: 1;
+        overflow-y: auto;
+        aspect-ratio: 3;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: .75rem;
+    }
+
+    .messages {
+        margin-bottom: 1rem;
+    }
+
+    .top:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .top > div {
+        flex-grow: 1;
+    }
+
+    .top:first-child {
+        flex-grow: .25;
+
+    }
+
+    .message_container {
+        display: flex;
+
+        align-items: flex-end;
+    }
+
+    .message_container p {
+        z-index: 2;
+        color: white;
+        margin-left: .5rem;
+        margin-top: .5rem;
+    }
+
+    .right {
+        margin-right: .5rem;
+        justify-content: flex-end;
+    }
+
+    .buttons button:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .content button {
+        flex-grow: 0;
+    }
+</style>

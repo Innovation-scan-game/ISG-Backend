@@ -3,10 +3,11 @@ using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using Domain.Enums;
-using FunctionsApp.DTO;
-using FunctionsApp.DTO.CardDTOs;
-using FunctionsApp.DTO.GameSessionDTOs;
-using FunctionsApp.DTO.UserDTOs;
+using IsolatedFunctions.DTO;
+using IsolatedFunctions.DTO.CardDTOs;
+using IsolatedFunctions.DTO.GameSessionDTOs;
+using IsolatedFunctions.DTO.SignalDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -45,20 +46,20 @@ public class APIContractMain
     [FunctionName("getCards")]
     [OpenApiOperation(operationId: "GetCards", tags: new[] {"cards"}, Summary = "Gets a list of all the cards",
         Description = "Gets a list of all the cards that are currently in the game")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardListDTO),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardListDto),
         Description = "The OK response")]
     public async Task<IActionResult> GetCards([HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req)
     {
-        CardListDTO cardList = new()
+        CardListDto cardList = new()
         {
-            Cards = new CardDTO[4]
+            Cards = new CardDto[4]
         };
 
-        cardList.Cards[0] = new CardDTO {CardName = "card1", CardBody = "card1 body", CardNumber = 0, CardType = CardTypeEnum.OpenAnswer};
-        cardList.Cards[1] = new CardDTO
-            {CardName = "card2", CardBody = "card2 body", CardNumber = 1, CardType = CardTypeEnum.MultipleChoice};
-        cardList.Cards[2] = new CardDTO {CardName = "card2", CardBody = "card2 body", CardNumber = 2, CardType = CardTypeEnum.OpenAnswer};
-        cardList.Cards[3] = new CardDTO {CardName = "card3", CardBody = "card3 body", CardNumber = 3, CardType = CardTypeEnum.OpenAnswer};
+        cardList.Cards[0] = new CardDto {CardName = "card1", CardBody = "card1 body", CardNumber = 0, Type = CardTypeEnum.OpenAnswer};
+        cardList.Cards[1] = new CardDto
+            {CardName = "card2", CardBody = "card2 body", CardNumber = 1, Type = CardTypeEnum.MultipleChoice};
+        cardList.Cards[2] = new CardDto {CardName = "card2", CardBody = "card2 body", CardNumber = 2, Type = CardTypeEnum.OpenAnswer};
+        cardList.Cards[3] = new CardDto {CardName = "card3", CardBody = "card3 body", CardNumber = 3, Type = CardTypeEnum.OpenAnswer};
 
 
         return new OkObjectResult(cardList);
@@ -67,16 +68,16 @@ public class APIContractMain
     [FunctionName("getCard")]
     [OpenApiOperation(operationId: "GetCard", tags: new[] {"cards"}, Summary = "Get a single card",
         Description = "Gets a single card based on the card ID")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDTO),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
         Description = "CardDTO")]
     public async Task<IActionResult> GetCard([HttpTrigger(AuthorizationLevel.Function, "get", Route = "getCard/{id}")] HttpRequest req,
         string id)
     {
         int.TryParse(id, out int cardId);
-        CardDTO card = new()
+        CardDto card = new()
         {
-            ID = Guid.NewGuid(), CardName = $"card {id}", CardBody = $"card {id} body", CardNumber = cardId,
-            CardType = CardTypeEnum.OpenAnswer
+            Id = Guid.NewGuid(), CardName = $"card {id}", CardBody = $"card {id} body", CardNumber = cardId,
+            Type = CardTypeEnum.OpenAnswer
         };
         return new OkObjectResult(card);
     }
@@ -84,7 +85,7 @@ public class APIContractMain
     [FunctionName("postCard")]
     [OpenApiOperation(operationId: "PostCard", tags: new[] {"cards"}, Summary = "Creates a card",
         Description = "Creates a card based on the data given")]
-    [OpenApiRequestBody("application/json", typeof(CardDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(CardDto), Required = true)]
     public async Task<IActionResult> PostCard([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");
@@ -93,11 +94,11 @@ public class APIContractMain
     [FunctionName("putCard")]
     [OpenApiOperation(operationId: "PutCard", tags: new[] {"cards"}, Summary = "Updates a card",
         Description = "Updates a card based on the card ID with the given data")]
-    [OpenApiRequestBody("application/json", typeof(CardDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(CardDto), Required = true)]
     public async Task<IActionResult> PutCard([HttpTrigger(AuthorizationLevel.Function, "put", Route = null)] HttpRequest req)
     {
         string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-        var card = JsonConvert.DeserializeObject<CardDTO>(requestBody);
+        var card = JsonConvert.DeserializeObject<CardDto>(requestBody);
         Console.WriteLine(card.CardName);
         return new OkObjectResult("");
     }
@@ -113,7 +114,7 @@ public class APIContractMain
 
     [FunctionName("newRoom")]
     [OpenApiOperation(operationId: "NewRoom", tags: new[] {"game"}, Summary = "Creates new room", Description = "Creates a new room")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDTO),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDto),
         Description = "The OK response")]
     public async Task<IActionResult> NewRoom([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
@@ -132,7 +133,7 @@ public class APIContractMain
     [FunctionName("settings")]
     [OpenApiOperation(operationId: "Settings", tags: new[] {"game"}, Summary = "Update room settings",
         Description = "Update settings relevant to current game")]
-    [OpenApiRequestBody("application/json", typeof(GameSettingsDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(GameSettingsDto), Required = true)]
     public async Task<IActionResult> Settings([HttpTrigger(AuthorizationLevel.Function, "put", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");
@@ -141,7 +142,7 @@ public class APIContractMain
     [FunctionName("addUser")]
     [OpenApiOperation(operationId: "AddUser", tags: new[] {"game"}, Summary = "Invites user to room",
         Description = "Invites user to room by ID")]
-    [OpenApiRequestBody("application/json", typeof(UserDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(UserDto), Required = true)]
     public async Task<IActionResult> AddUser([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");
@@ -158,7 +159,7 @@ public class APIContractMain
     [FunctionName("submitResponse")]
     [OpenApiOperation(operationId: "SubmitResponse", tags: new[] {"game"}, Summary = "Submit response to a card",
         Description = "Submit response to a card")]
-    [OpenApiRequestBody("application/json", typeof(CardResponseDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(CardResponseDto), Required = true)]
     public async Task<IActionResult> SubmitResponse([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");
@@ -167,8 +168,8 @@ public class APIContractMain
     [FunctionName("joinGame")]
     [OpenApiOperation(operationId: "JoinGame", tags: new[] {"game"}, Summary = "Get room data",
         Description = "Access game data by room code")]
-    [OpenApiRequestBody("application/json", typeof(JoinRequestDTO), Required = true)]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDTO),
+    [OpenApiRequestBody("application/json", typeof(JoinRequestDto), Required = true)]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDto),
         Description = "The OK response")]
     public async Task<IActionResult> JoinGame([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
@@ -178,7 +179,7 @@ public class APIContractMain
     [FunctionName("addEmoji")]
     [OpenApiOperation(operationId: "AddEmoji", tags: new[] {"game"}, Summary = "Add emoji to response",
         Description = "React to a response with an emoji")]
-    [OpenApiRequestBody("application/json", typeof(EmojiDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(EmojiDto), Required = true)]
     public async Task<IActionResult> AddEmoji([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");
@@ -187,7 +188,7 @@ public class APIContractMain
     [FunctionName("matchHistory")]
     [OpenApiOperation(operationId: "MatchHistory", tags: new[] {"game"}, Summary = "Get user history",
         Description = "Get the game history of a user by ID")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(HistoryDTO),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(HistoryDto),
         Description = "The OK response")]
     public async Task<IActionResult> MatchHistory(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "matchHistory/{id}")] HttpRequest req)
@@ -198,7 +199,7 @@ public class APIContractMain
     [FunctionName("chatMessage")]
     [OpenApiOperation(operationId: "ChatMessage", tags: new[] {"game"}, Summary = "Send a message",
         Description = "Send a message to rest of the participants")]
-    [OpenApiRequestBody("application/json", typeof(ChatMessageDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(ChatMessageDto), Required = true)]
     public async Task<IActionResult> ChatMessage([HttpTrigger(AuthorizationLevel.Function, "put", Route = null)] HttpRequest req)
     {
         return new OkObjectResult("");

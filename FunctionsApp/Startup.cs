@@ -1,7 +1,7 @@
 ﻿using System;
 using DAL.Data;
 using FunctionsApp;
-using FunctionsApp.Infrastructure;
+using IsolatedFunctions.Infrastructure;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,8 +15,25 @@ public class Startup : FunctionsStartup
     {
         builder.Services.AddHttpClient();
 
+        // use cors
 
-        builder.Services.AddAutoMapper(typeof(UserMappingProfile));
+        // builder.Services.AddCors(options =>
+        // {
+        //     options.AddPolicy(name: "MyPolicy", policy =>
+        //     {
+        //         policy.WithOrigins("http://127.0.0.1:8000")
+        //             .AllowAnyHeader()
+        //             .AllowAnyMethod()
+        //             .AllowAnyOrigin();
+        //     });
+        // });
+
+
+
+        builder.Services.AddAutoMapper(typeof(InnovationGameMappingProfile));
+
+        // add signalr
+
 
         string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
         builder.Services.AddDbContext<InnovationGameDbContext>();

@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.Runtime.Intrinsics.Arm;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using Domain.Enums;
 
@@ -8,11 +6,23 @@ namespace Domain.Models;
 
 public class GameSession
 {
-    public Guid Id { get; set; }
-    public string SessionCode { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string SessionCode { get; set; } = "";
     public DateTime Created { get; set; }
+
     public SessionStatus Status { get; set; }
-    public User Host { get; set; }
+    // public Guid HostId { get; set; }
+
+    // one to one
+    public Guid HostId { get; set; }
+
+    // public virtual User Host { get; set; }
+    public int RoundDurationSeconds { get; set; }
+    public int Rounds { get; set; }
+    public int CurrentRound { get; set; }
+    public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
+
+    public ICollection<User> Players { get; set; } = new List<User>();
 
     public static GameSession New()
     {
@@ -22,7 +32,7 @@ public class GameSession
         {
             Id = id,
             Created = DateTime.Now,
-            Status = SessionStatus.Active,
+            Status = SessionStatus.Lobby,
             SessionCode = GenerateSessionCode(id)
         };
     }

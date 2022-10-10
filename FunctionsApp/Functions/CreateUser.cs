@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using DAL.Data;
 using Domain.Models;
-using FunctionsApp.DTO.UserDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -28,17 +28,17 @@ public class CreateUser
     }
 
     [FunctionName("createUser")]
-    [OpenApiRequestBody("application/json", typeof(CreateUserDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
     [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Creates a new user",
         Description = "Creates a new user based on the data given")]
     public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
     {
-        CreateUserDTO createUserDto;
+        CreateUserDto createUserDto;
 
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         try
         {
-            createUserDto = JsonConvert.DeserializeObject<CreateUserDTO>(requestBody);
+            createUserDto = JsonConvert.DeserializeObject<CreateUserDto>(requestBody);
         }
         catch (JsonSerializationException e)
         {

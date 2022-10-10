@@ -35,6 +35,9 @@ namespace DAL.Migrations
                     b.Property<int>("CardNumber")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("GameSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -43,6 +46,8 @@ namespace DAL.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
 
                     b.ToTable("Cards");
                 });
@@ -55,6 +60,18 @@ namespace DAL.Migrations
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentRound")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("HostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("RoundDurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rounds")
+                        .HasColumnType("int");
 
                     b.Property<string>("SessionCode")
                         .IsRequired()
@@ -80,15 +97,15 @@ namespace DAL.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Response")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("response")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -117,6 +134,9 @@ namespace DAL.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("Ready")
+                        .HasColumnType("bit");
+
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
@@ -125,11 +145,16 @@ namespace DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SessionId")
-                        .IsUnique()
-                        .HasFilter("[SessionId] IS NOT NULL");
+                    b.HasIndex("SessionId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Domain.Models.Card", b =>
+                {
+                    b.HasOne("Domain.Models.GameSession", null)
+                        .WithMany("Cards")
+                        .HasForeignKey("GameSessionId");
                 });
 
             modelBuilder.Entity("Domain.Models.SessionResponse", b =>
@@ -154,16 +179,17 @@ namespace DAL.Migrations
             modelBuilder.Entity("Domain.Models.User", b =>
                 {
                     b.HasOne("Domain.Models.GameSession", "CurrentSession")
-                        .WithOne("Host")
-                        .HasForeignKey("Domain.Models.User", "SessionId");
+                        .WithMany("Players")
+                        .HasForeignKey("SessionId");
 
                     b.Navigation("CurrentSession");
                 });
 
             modelBuilder.Entity("Domain.Models.GameSession", b =>
                 {
-                    b.Navigation("Host")
-                        .IsRequired();
+                    b.Navigation("Cards");
+
+                    b.Navigation("Players");
                 });
 #pragma warning restore 612, 618
         }

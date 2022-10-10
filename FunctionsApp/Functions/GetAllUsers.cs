@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
 using AutoMapper;
 using DAL.Data;
-using FunctionsApp.DTO.UserDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -27,12 +26,12 @@ public class GetAllUsers
 
     [FunctionName("getAllUsers")]
     [OpenApiOperation(operationId: "UserList", tags: new[] {"user"}, Summary = "Gets user list", Description = "Gets list of users")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDTO[]))]
-    public async Task<IActionResult> UserList([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req)
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto[]))]
+    public IActionResult UserList([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req)
     {
         var users = _context.Users.ToList();
 
-        var userDTOs = users.Select(u => _mapper.Map<UserDTO>(u)).ToArray();
+        var userDtos = users.Select(u => _mapper.Map<UserDto>(u)).ToArray();
 
         Console.WriteLine("userdtos");
         // UserDTO user1 = new() {Username = "jurek", Email = "jurek.baumann@gmail.com", Role = UserRoleEnum.Admin};
@@ -41,6 +40,6 @@ public class GetAllUsers
         // UserDTO user4 = new() {Username = "Random Guy", Email = "rnd@gmail.com", Role = UserRoleEnum.User};
         //
         // return new OkObjectResult(new[] {user1, user2, user3, user4});
-        return new OkObjectResult(userDTOs);
+        return new OkObjectResult(userDtos);
     }
 }

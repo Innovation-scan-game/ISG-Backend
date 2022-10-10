@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using DAL.Data;
 using Domain.Models;
-using FunctionsApp.DTO.UserDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -28,17 +28,17 @@ public class EditUser
     }
 
     [FunctionName("EditUser")]
-    [OpenApiRequestBody("application/json", typeof(EditUserDTO), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(EditUserDto), Required = true)]
     public async Task<IActionResult> RunAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = null)]
         HttpRequest req, ILogger log)
     {
-        EditUserDTO editUser;
+        EditUserDto editUser;
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
 
         try
         {
-            editUser = JsonConvert.DeserializeObject<EditUserDTO>(requestBody);
+            editUser = JsonConvert.DeserializeObject<EditUserDto>(requestBody);
         }
         catch (Exception e)
         {
