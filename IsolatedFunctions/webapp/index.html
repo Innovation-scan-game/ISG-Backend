@@ -13,6 +13,7 @@
 
 <div id="app">
 
+    <!--    LOGIN-->
     <div class="login" v-if="$store.state.status==='default'">
         <h3>Login</h3>
         <form @submit.prevent="login">
@@ -20,11 +21,10 @@
             <input type="password" v-model="userLogin.password" id="password" class="form-control" placeholder="Password"/>
             <button style="tab-index: 0;" class="btn btn-primary" @submit>Login</button>
         </form>
-
-
         <p>Don't have an account yet? <a href="#" v-on:click="$store.commit('setStatus','createAccount')">Create</a> one now!</p>
     </div>
 
+    <!--    CREATE ACCOUNT-->
     <div class="createAccount" v-if="$store.state.status==='createAccount'">
         <h3>Create Account</h3>
         <form @submit.prevent="createAccount">
@@ -34,11 +34,10 @@
             <button class="btn btn-primary" @submit.prevent>Create Account</button>
             <button class="btn btn-secondary" v-on:click.prevent="$store.commit('setStatus','default')">Cancel</button>
         </form>
-
     </div>
 
+    <!--    MAIN MENU-->
     <div class="menu" v-if="$store.state.status==='menu'">
-
         <div class="buttons">
             <button class="btn btn-primary" v-on:click="createLobby">Create Lobby</button>
             <button class="btn btn-primary" v-on:click="$store.commit('setStatus','join')">Join Lobby</button>
@@ -46,6 +45,7 @@
         </div>
     </div>
 
+    <!--    LOBBY-->
     <div class="lobby" v-if="$store.state.status==='lobby'">
         <div class="content">
             <h3>Lobby</h3>
@@ -83,6 +83,7 @@
         </div>
     </div>
 
+    <!--    JOIN LOBBY-->
     <div class="join" v-if="$store.state.status==='join'">
         <h3>Join a Game</h3>
         <form @submit.prevent="joinLobby">
@@ -93,6 +94,7 @@
         </form>
     </div>
 
+    <!--    GAME-->
     <div class="game" v-if="$store.state.status==='game'">
         <div class="infos">
             <span v-if="connection === null" class="badge bg-danger">Lost Connection</span>
@@ -153,6 +155,7 @@
         </div>
     </div>
 
+    <!--    END SCREEN-->
     <div class="content endscreen" v-if="$store.state.status==='end'">
         <h1>Thanks for playing!</h1>
         <button class="btn btn-primary" v-on:click="$store.commit('setStatus','menu')">Back to menu</button>
@@ -161,6 +164,7 @@
 </div>
 
 <footer>© 2022 InHolland Project Group 12</footer>
+
 <script src="https://cdn.jsdelivr.net/npm/vue@2.7.10/dist/vue.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vuex@3.6.2/dist/vuex.min.js"></script>
 <script src="https://unpkg.com/vuex-persistedstate/dist/vuex-persistedstate.umd.js"></script>
@@ -244,7 +248,6 @@
         signalGroup: "",
         "baseUrl": baseUrl,
         connection: null,
-        conId: "",
         isReady: false,
         sessionCode: "",
         answer: "",
@@ -252,170 +255,174 @@
         toggleOptions: false,
     };
     const app = new Vue({
-        el: '#app',
-        "data": data,
-        "store": store,
-        computed: {
-            isHost() {
-                return store.state.lobbyData.hostId === store.state.userId
+            el: '#app',
+            "data": data,
+            "store": store,
+            computed: {
+                isHost() {
+                    return store.state.lobbyData.hostId === store.state.userId
+                },
+                allReady() {
+                    return store.state.lobbyData.players.every(p => p.ready)
+                },
             },
-            allReady() {
-                return store.state.lobbyData.players.every(p => p.ready)
-            },
 
-        },
-
-        mounted() {
-            if (store.state.jwt !== "" && store.state.status === "default") {
-                store.commit("setStatus", "menu");
-            }
-            if (store.state.status === "lobby" || store.state.status === "game" && data.connection === null) {
-
-                data.isReady = store.state.lobbyData.players.find(p => p.id === store.state.userId).ready;
-                console.log("recreate connection", this.baseUrl, store.state.jwt, data.connection)
-                data.connection = createConnection(store.state.jwt, this.baseUrl)
-            }
-        },
-
-        // scroll to bottom of chat, if a new message is added
-        watch: {
-            '$store.state.messages': function (newMessages) {
-                if (newMessages.length > 0) {
-                    this.$nextTick(() => {
-                        const mContainer = this.$refs.messageContainer;
-                        if (mContainer && mContainer.length > 0) {
-                            mContainer[mContainer.length - 1].scrollIntoView({behavior: "smooth"});
-                        }
-                    })
+            mounted() {
+                if (store.state.jwt !== "" && store.state.status === "default") {
+                    store.commit("setStatus", "menu");
                 }
-            }
-        },
-        methods: {
+                if (store.state.status === "lobby" || store.state.status === "game" && data.connection === null) {
 
-            // Filter messages by round
-            filterMessages(arr, round) {
-                // console.log("filterMessages", arr, round)
-                return arr.filter(message => message.round === round)
-            },
-            login: async function () {
-                await postRequest("/api/login", this.userLogin)
-                    .then(response => response.json())
-                    .then(data => {
-                        store.commit("setJwt", data.accessToken);
-                        this.userLogin = {};
-                        jwt = data.accessToken;
-                        this.jwt = data.accessToken;
-                        store.commit("setUserId", data.userId);
-                        store.commit("setStatus", "menu");
-                    })
-                    .catch(error => console.error(error));
-                console.log("login")
-            },
-
-            createAccount: async function () {
-                await postRequest("/api/createUser", this.userCreate)
-                    .then(response => response.json())
-
-                    .then(data => {
-                        console.log("create data:", data, response);
-                        if (data === "User already exists") {
-                            console.log(data);
-                        } else {
-                            this.userCreate = {};
-                            store.commit("setStatus", "default");
-                            this.userLogin.username = data.username;
-                            this.userLogin.password = data.password;
-                        }
-
-                    })
-                    .catch(error => console.error(error));
-            },
-
-            createLobby: async function () {
-                await postRequest("/api/createSession")
-                    .then(response => response.json())
-                    .then(data => {
-                        store.commit("setLobbyData", data);
-
-                    })
-                store.commit("setStatus", "lobby");
-                this.connection = createConnection(store.state.jwt, this.baseUrl)
-            },
-            leaveLobby: async function () {
-                await postRequest("/api/session/leave");
-                store.commit("setStatus", "menu");
-                store.commit("setLobbyData", {});
-                this.isReady = false;
-                if (this.connection !== null) {
-                    this.connection.stop();
-                    this.connection = null;
+                    data.isReady = store.state.lobbyData.players.find(p => p.id === store.state.userId).ready;
+                    console.log("recreate connection", this.baseUrl, store.state.jwt, data.connection)
+                    data.connection = createConnection(store.state.jwt, this.baseUrl)
                 }
             },
-            submitJoin: async function () {
-                await postRequest("/api/session/join", {"sessionAuth": this.sessionCode})
-                    .then(response => response.json())
-                    .then(data => {
-                        store.commit("setLobbyData", data);
-                    });
-                store.commit("setStatus", "lobby");
-                this.connection = createConnection(this.jwt, this.baseUrl)
-            },
 
-            submitCard: async function () {
-                if (this.answer.length > 0) {
-                    await postRequest("/api/session/submit", {"answer": this.answer})
+            // scroll to bottom of chat, if a new message is added
+            watch: {
+                '$store.state.messages': function (newMessages) {
+                    if (newMessages.length > 0) {
+                        this.$nextTick(() => {
+                            const mContainer = this.$refs.messageContainer;
+                            if (mContainer && mContainer.length > 0) {
+                                mContainer[mContainer.length - 1].scrollIntoView({behavior: "smooth"});
+                            }
+                        })
+                    }
+                }
+            },
+            methods: {
+
+                // Filter messages by round
+                filterMessages(arr, round) {
+                    return arr.filter(message => message.round === round)
+                },
+                login: async function () {
+                    await postRequest("/api/login", this.userLogin)
                         .then(response => response.json())
-                        .catch(error => console.error("submit error", error))
-                        .then((data) => {
-                            console.log("submit data", data)
-                            store.commit("setAnswerSubmitted", true);
-                            this.answer = "";
+                        .then(data => {
+                            if (data.message) {
+                                console.log("login error:", data.message)
+                            } else {
+                                store.commit("setJwt", data.accessToken);
+                                this.userLogin = {};
+                                jwt = data.accessToken;
+                                this.jwt = data.accessToken;
+                                store.commit("setUserId", data.userId);
+                                store.commit("setStatus", "menu");
+                            }
+
+                        })
+                        .catch(error => console.error(error));
+                },
+
+                createAccount: async function () {
+                    await postRequest("/api/createUser", this.userCreate)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.message) {
+                                console.log("createUser error", data.message)
+                            } else {
+                                this.userCreate = {};
+                                store.commit("setStatus", "default");
+                                this.userLogin.username = data.username;
+                                this.userLogin.password = data.password;
+                            }
+                        })
+                        .catch(error => console.error(error));
+
+
+                },
+
+                createLobby: async function () {
+                    await postRequest("/api/createSession")
+                        .then(response => response.json())
+                        .then(data => {
+                            store.commit("setLobbyData", data);
+                            store.commit("setStatus", "lobby");
+                            this.connection = createConnection(store.state.jwt, this.baseUrl)
+                        })
+                        .catch(error => console.error(error));
+                },
+                leaveLobby: async function () {
+                    await postRequest("/api/session/leave").then(() => {
+                        store.commit("setStatus", "menu");
+                        store.commit("setLobbyData", {});
+                        this.isReady = false;
+                        if (this.connection !== null) {
+                            this.connection.stop();
+                            this.connection = null;
+                        }
+                    }).catch(error => console.error(error));
+
+                },
+
+                submitJoin: async function () {
+                    await postRequest("/api/session/join", {"sessionAuth": this.sessionCode})
+                        .then(response => response.json())
+                        .then(data => {
+                            store.commit("setLobbyData", data);
                         });
+                    store.commit("setStatus", "lobby");
+                    this.connection = createConnection(this.jwt, this.baseUrl)
+                },
+
+                submitCard: async function () {
+                    if (this.answer.length > 0) {
+                        await postRequest("/api/session/submit", {"answer": this.answer})
+                            .then(response => response.json())
+                            .catch(error => console.error("submit error", error))
+                            .then((data) => {
+                                console.log("submit data", data)
+                                store.commit("setAnswerSubmitted", true);
+                                this.answer = "";
+                            });
+                    }
+                },
+
+                sendMessage: async function () {
+                    if (this.message.length > 0) {
+                        await postRequest("/api/session/message", {"message": this.message})
+                            .then(() => {
+                                this.message = "";
+                            });
+                    }
+                },
+
+                nextRound: async function () {
+                    await postRequest("/api/session/next")
+                        .catch(error => console.error("nextRound error:", error));
+                },
+
+                endGame: async function () {
+                    await postRequest("/api/session/end")
+                        .catch(error => console.error("endGame error:", error));
+                },
+
+                changeReadyState: async function () {
+                    data.isReady = !data.isReady;
+                    await postRequest("/api/session/ready", {"ready": data.isReady})
+                        .catch(error => console.error("changeReadyState error:", error));
+                },
+
+                startGame: async function () {
+                    await postRequest("/api/session/start", {
+                        rounds: parseInt(this.options.rounds),
+                        roundDuration: parseInt(this.options.duration)
+                    })
+                        .catch(error => console.error("startGame error:", error));
+                    data.toggleOptions = false;
+                },
+
+                logout: function () {
+                    store.commit("setStatus", "default");
+                    store.commit("setJwt", "");
+                    store.commit("setUserId", "");
                 }
-            },
-
-            sendMessage: async function () {
-                if (this.message.length > 0) {
-                    await postRequest("/api/session/message", {"message": this.message})
-                        .then(() => {
-                            this.message = "";
-                        });
-                }
-            },
-
-            nextRound: async function () {
-
-                await postRequest("/api/session/next")
-                    .catch(error => console.error("nextRound error:", error));
-            },
-
-            endGame: async function () {
-                await postRequest("/api/session/end")
-                    .catch(error => console.error("endGame error:", error));
-            },
-
-            changeReadyState: async function () {
-                data.isReady = !data.isReady;
-                await postRequest("/api/session/ready", {"ready": data.isReady})
-                    .catch(error => console.error("changeReadyState error:", error));
-            },
-
-            startGame: async function () {
-                await postRequest("/api/session/start", {
-                    rounds: parseInt(this.options.rounds),
-                    roundDuration: parseInt(this.options.duration)
-                })
-                    .catch(error => console.error("startGame error:", error));
-                data.toggleOptions = false;
-            },
-
-            logout: function () {
-                store.commit("setStatus", "default");
-                store.commit("setJwt", "");
-                store.commit("setUserId", "");
             }
-        }
-    });
+        })
+    ;
 
     function createConnection(jwt, baseUrl) {
 
@@ -427,8 +434,8 @@
 
         // SignalR message callbacks
         connection.on('newConnection', async (id) => {
-            console.log("new connection", id)
-            this.conId = id;
+            // I would have liked to avoid this, but it seems necessary to have the user call the joinGroup endpoint manually
+            // instead of doing it automatically in Negotiate or OnConnected..
             await postRequest("/api/joinGrp", {"connectionId": id})
                 .catch(error => console.error(error));
 
@@ -443,14 +450,18 @@
         connection.on("endSession", onEndSession);
 
         connection.onclose(() => {
-            console.log('disconnected')
+            console.log('#################################');
+            console.log('disconnected');
+            console.log('#################################');
             data.connection = null;
+            if (store.state.status !== "end") {
+                console.warn("Connection lost, reconnecting..");
+            }
         });
         connection.start();
         console.log("connection started", connection)
         return connection;
     }
-
 
     function onNewMessage(user, round, message) {
         store.commit("addMessage", {"user": user, "round": round, "message": message});
@@ -468,7 +479,6 @@
     }
 
     function onPlayerLeft(user) {
-
         // Host left, so return to main menu
         if (user.id === store.state.lobbyData.hostId) {
             store.commit("setStatus", "menu")
@@ -520,7 +530,6 @@
         store.commit("setGameInfo", {});
         data.connection.stop();
         data.connection = null;
-        data.conId = null;
     }
 
     // Helper function to not have to type out the headers every time.
@@ -531,7 +540,7 @@
             console.log("using auth")
             headers['Authorization'] = `Bearer ${store.state.jwt}`
         }
-        return fetch(baseUrl + route, {
+        return await fetch(baseUrl + route, {
             method: 'POST',
             "headers": headers,
             body: JSON.stringify(data)
@@ -797,7 +806,7 @@
     .received:after {
         right: -26px;
         width: 26px;
-        background-color: #181818;
+        background-color: #303030;
         border-bottom-left-radius: 10px;
     }
 

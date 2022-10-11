@@ -7,7 +7,7 @@ namespace IsolatedFunctions.Controllers;
 public class WebAppController
 {
     [Function(nameof(Prototype))]
-    public async Task<HttpResponseData> Prototype([HttpTrigger(AuthorizationLevel.Anonymous)] HttpRequestData req)
+    public async Task<HttpResponseData> Prototype([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteStringAsync(await File.ReadAllTextAsync("webapp/index.html"));
@@ -16,7 +16,7 @@ public class WebAppController
     }
 
     [Function(nameof(Cms))]
-    public async Task<HttpResponseData> Cms([HttpTrigger(AuthorizationLevel.Anonymous)] HttpRequestData req)
+    public async Task<HttpResponseData> Cms([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cms")] HttpRequestData req)
     {
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteStringAsync(await File.ReadAllTextAsync("webapp/cms.html"));

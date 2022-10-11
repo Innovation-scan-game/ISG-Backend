@@ -4,6 +4,7 @@ using AutoMapper;
 using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
+using IsolatedFunctions.DTO;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.DTO.GameSessionDTOs;
 using IsolatedFunctions.DTO.SignalDTOs;
@@ -182,15 +183,22 @@ public class SessionController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
+
+        var response = req.CreateResponse();
+
         if (user == null)
         {
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
+            response.StatusCode = HttpStatusCode.Unauthorized;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Unauthorized"});
+            return response;
         }
 
         JoinRequestDto? joinRequestDto = await req.ReadFromJsonAsync<JoinRequestDto>();
         if (joinRequestDto == null)
         {
-            return req.CreateResponse(HttpStatusCode.BadRequest);
+            response.StatusCode = HttpStatusCode.BadRequest;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Bad request"});
+            return response;
         }
 
         GameSession? session =
@@ -199,14 +207,16 @@ public class SessionController
 
         if (session == null)
         {
-            return req.CreateResponse(HttpStatusCode.NotFound);
+            response.StatusCode = HttpStatusCode.NotFound;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Session not found"});
+            return response;
         }
 
         if (session.Status != SessionStatus.Lobby)
         {
-            var res = req.CreateResponse(HttpStatusCode.BadRequest);
-            await res.WriteStringAsync("Invalid session status");
-            return res;
+            response.StatusCode = HttpStatusCode.BadRequest;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Session is no longer valid."});
+            return response;
         }
 
         User? dbUser = await _context.Users.FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
@@ -214,7 +224,7 @@ public class SessionController
         dbUser.Ready = false;
         await _context.SaveChangesAsync();
         LobbyResponseDto sessionDto = _mapper.Map<LobbyResponseDto>(session);
-        var response = req.CreateResponse(HttpStatusCode.OK);
+        response.StatusCode = HttpStatusCode.OK;
         await response.WriteAsJsonAsync(sessionDto);
         return response;
     }
@@ -258,6 +268,7 @@ public class SessionController
         {
             return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
+
         User? dbUser = await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
 
         GameSession session = GameSession.New();

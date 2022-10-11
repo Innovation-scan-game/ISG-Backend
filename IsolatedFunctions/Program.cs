@@ -21,12 +21,10 @@ public class Program
 
                 if (context.HostingEnvironment.IsDevelopment())
                 {
-                    Console.WriteLine("IS DEV");
                     configurationBuilder.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
                 }
                 else
                 {
-                    Console.WriteLine("IS NOT DEV");
                     configurationBuilder.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true,
                         reloadOnChange: true);
                 }

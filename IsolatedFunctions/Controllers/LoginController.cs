@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using DAL.Data;
 using Domain.Models;
+using IsolatedFunctions.DTO;
 using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -33,6 +34,7 @@ public class LoginController
         if (login == null)
         {
             response.StatusCode = HttpStatusCode.BadRequest;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Invalid request"});
             return response;
         }
 
@@ -41,13 +43,14 @@ public class LoginController
         if (dbUser == null)
         {
             response.StatusCode = HttpStatusCode.NotFound;
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "User not found"});
             return response;
         }
 
         if (!BCrypt.Net.BCrypt.Verify(login.Password, dbUser.Password))
         {
             response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteStringAsync("Invalid password");
+            await response.WriteAsJsonAsync(new ErrorDto {Message = "Invalid password"});
             return response;
         }
 
