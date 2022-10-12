@@ -38,5 +38,10 @@ public class InnovationGameMappingProfile : Profile
 
         CreateMap<GameSession, LobbyResponseDto>();
 
+        CreateMap<GameSession, SessionDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()))
+            ;
+        CreateMap<SessionResponse, SessionResponseDto>();
+
     }
 }

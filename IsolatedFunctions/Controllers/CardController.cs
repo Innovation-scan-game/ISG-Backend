@@ -32,6 +32,13 @@ public class CardController
         return response;
     }
 
+    [Function(nameof(GetCardById))]
+    public async Task<CardDto> GetCardById([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")] HttpRequestData req, string id)
+    {
+        Card? card = _context.Cards.FirstOrDefault(c => c.Id == Guid.Parse(id));
+        return _mapper.Map<CardDto>(card);
+    }
+
     [Function(nameof(DeleteCard))]
     public async Task<HttpResponseData> DeleteCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "cards/{id}")]

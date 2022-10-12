@@ -454,7 +454,7 @@
             console.log('disconnected');
             console.log('#################################');
             data.connection = null;
-            if (store.state.status !== "end") {
+            if (store.state.status !== "end" && store.state.status !== "menu") {
                 console.warn("Connection lost, reconnecting..");
             }
         });

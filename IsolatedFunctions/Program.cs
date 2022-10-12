@@ -6,6 +6,7 @@ using IsolatedFunctions.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Azure;
 
 namespace IsolatedFunctions;
 
@@ -47,7 +48,9 @@ public class Program
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services
-            .AddLogging();
+            .AddLogging()
+            .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetConnectionString("AzureStorage")); });
+
 
         // .AddSingleton()
         // .AddHttpLayer(configuration)

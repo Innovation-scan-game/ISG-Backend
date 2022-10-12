@@ -24,6 +24,8 @@ public class GameSession
 
     public ICollection<User> Players { get; set; } = new List<User>();
 
+    public ICollection<SessionResponse> Responses { get; set; } = new List<SessionResponse>();
+
     public static GameSession New()
     {
         Guid id = Guid.NewGuid();

@@ -2,7 +2,7 @@
 
 public enum CardTypeEnum
 {
+    OpenAnswer,
     Scale,
     MultipleChoice,
-    OpenAnswer
 }

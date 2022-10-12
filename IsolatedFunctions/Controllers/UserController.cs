@@ -8,6 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 
@@ -37,7 +38,29 @@ public class UserController
         _mapper = mapper;
     }
 
-    [Function("createUser")]
+    [Function(nameof(UploadProfilePicture))]
+    public async Task<HttpResponseData> UploadProfilePicture(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")] HttpRequestData req,
+        FunctionContext executionContext)
+    {
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        return response;
+    }
+
+    [Function(nameof(GetAllUsers))]
+    public async Task<UserDto[]> GetAllUsers([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "userList")] HttpRequestData req)
+    {
+        List<User> users = await _context.Users.ToListAsync();
+        return _mapper.Map<UserDto[]>(users);
+    }
+    [Function(nameof(GetUserById))]
+    public async Task<UserDto> GetUserById([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")] HttpRequestData req, string id)
+    {
+        User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
+        return _mapper.Map<UserDto>(user);
+    }
+
+    [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
     [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Creates a new user",
         Description = "Creates a new user based on the data given")]

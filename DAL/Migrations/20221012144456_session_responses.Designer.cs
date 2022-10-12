@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(InnovationGameDbContext))]
-    partial class InnovationGameDbContextModelSnapshot : ModelSnapshot
+    [Migration("20221012144456_session_responses")]
+    partial class session_responses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,21 +23,6 @@ namespace DAL.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
-
-            modelBuilder.Entity("CardGameSession", b =>
-                {
-                    b.Property<Guid>("CardsId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SessionsId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("CardsId", "SessionsId");
-
-                    b.HasIndex("SessionsId");
-
-                    b.ToTable("CardGameSession");
-                });
 
             modelBuilder.Entity("Domain.Models.Card", b =>
                 {
@@ -50,6 +37,9 @@ namespace DAL.Migrations
                     b.Property<int>("CardNumber")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("GameSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -58,6 +48,8 @@ namespace DAL.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
 
                     b.ToTable("Cards");
                 });
@@ -160,19 +152,11 @@ namespace DAL.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("CardGameSession", b =>
+            modelBuilder.Entity("Domain.Models.Card", b =>
                 {
-                    b.HasOne("Domain.Models.Card", null)
-                        .WithMany()
-                        .HasForeignKey("CardsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Domain.Models.GameSession", null)
-                        .WithMany()
-                        .HasForeignKey("SessionsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .WithMany("Cards")
+                        .HasForeignKey("GameSessionId");
                 });
 
             modelBuilder.Entity("Domain.Models.SessionResponse", b =>
@@ -205,6 +189,8 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("Domain.Models.GameSession", b =>
                 {
+                    b.Navigation("Cards");
+
                     b.Navigation("Players");
 
                     b.Navigation("Responses");

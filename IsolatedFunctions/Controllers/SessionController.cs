@@ -249,7 +249,9 @@ public class SessionController
 
         if (dbUser.CurrentSession.HostId == dbUser.Id)
         {
-            dbUser.CurrentSession.Status = SessionStatus.Cancelled;
+            _context.GameSessions.Remove(dbUser.CurrentSession);
+            dbUser.CurrentSession = null;
+
         }
 
         dbUser.CurrentSession = null;
@@ -294,9 +296,9 @@ public class SessionController
         SessionOptionsDto? options = await req.ReadFromJsonAsync<SessionOptionsDto>();
 
         Random rnd = new Random();
-        IEnumerable<Card> dbCards = _context.Cards.ToList().OrderBy(_ => rnd.Next()).Take(options!.Rounds);
+        List<Card> dbCards = _context.Cards.ToList().OrderBy(_ => rnd.Next()).Take(options!.Rounds).OrderBy(c => c.Id).ToList();
 
-        CardDto[] cards = _mapper.Map<CardDto[]>(dbCards);
+        List<CardDto> cards = _mapper.Map<List<CardDto>>(dbCards);
 
         var principal = executionContext.GetUser();
         if (principal == null)
@@ -309,10 +311,12 @@ public class SessionController
 
         user!.CurrentSession!.Rounds = options.Rounds;
         user.CurrentSession.Status = SessionStatus.Active;
+        user.CurrentSession.Cards = dbCards;
+        user.CurrentSession.RoundDurationSeconds = options.RoundDuration;
         await _context.SaveChangesAsync();
 
 
-        SessionResponseDto responseDto = new()
+        StartGameDto responseDto = new()
         {
             Cards = cards,
             RoundDuration = options.RoundDuration,
@@ -354,5 +358,19 @@ public class SessionController
             GroupName = user.CurrentSession!.SessionCode,
             Arguments = new object[] {playerDto}
         };
+    }
+
+    [Function(nameof(MatchHistory))]
+    public async Task<HttpResponseData> MatchHistory([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")]
+        HttpRequestData req, FunctionContext executionContext)
+    {
+
+        var sessions = _context.GameSessions.Include(s => s.Players).Include(s => s.Cards).Include(s => s.Responses).ThenInclude(r => r.User).ToList();
+
+        SessionDto[]? dtos = _mapper.Map<SessionDto[]>(sessions);
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        await response.WriteAsJsonAsync(dtos);
+        return response;
+
     }
 }

@@ -12,4 +12,5 @@ public class Card
     public string Name { get; set; } = "";
     public string Body { get; set; } = "";
     public CardTypeEnum Type { get; set; }
+    public virtual ICollection<GameSession> Sessions { get; set; } = new List<GameSession>();
 }
