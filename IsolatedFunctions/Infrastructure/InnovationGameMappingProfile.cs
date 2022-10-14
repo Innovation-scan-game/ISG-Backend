@@ -10,6 +10,12 @@ public class InnovationGameMappingProfile : Profile
 {
     public InnovationGameMappingProfile()
     {
+        CreateMap<int?, int>().ConvertUsing((src, dest) => src ?? dest);
+        CreateMap<string?, string>().ConvertUsing((src, dest) => src ?? dest);
+        CreateMap<string?, Guid>().ConvertUsing(s => String.IsNullOrWhiteSpace(s) ? Guid.Empty : Guid.Parse(s));
+        CreateMap<string, Guid>().ConvertUsing(s => Guid.Parse(s));
+
+        CreateMap<User, User>();
         CreateMap<UserDto, User>();
         CreateMap<CreateUserDto, User>()
             .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Username))
@@ -25,8 +31,17 @@ public class InnovationGameMappingProfile : Profile
 
 
         CreateMap<EditUserDto, User>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id)))
+            .ForMember(t => t.Id, opt =>
+            {
+                opt.PreCondition(s => s.Id != string.Empty);
+                opt.MapFrom(s => Guid.Parse(s.Id));
+            })
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Username))
+            .ForMember(dest => dest.Password, opt => opt.MapFrom(src => BCrypt.Net.BCrypt.HashPassword(src.Password)))
+
             ;
+
+
 
         CreateMap<CreateCardDto, Card>();
 
@@ -42,6 +57,5 @@ public class InnovationGameMappingProfile : Profile
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()))
             ;
         CreateMap<SessionResponse, SessionResponseDto>();
-
     }
 }
