@@ -16,4 +16,5 @@ public class User
     public virtual GameSession? CurrentSession { get; set; }
     public Guid? SessionId { get; set; }
     public bool Ready { get; set; }
+    public string Picture { get; set; } = "";
 }

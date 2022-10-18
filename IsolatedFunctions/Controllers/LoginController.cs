@@ -1,7 +1,9 @@
 ﻿using System.Net;
+using AutoMapper;
 using DAL.Data;
 using Domain.Models;
-using IsolatedFunctions.DTO;
+using IsolatedFunctions.DTO.UserDTOs;
+using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -12,15 +14,17 @@ namespace IsolatedFunctions.Controllers;
 
 public class LoginController
 {
+    private readonly IMapper _mapper;
     private InnovationGameDbContext Context { get; }
     private ILogger Logger { get; }
     private ITokenService TokenService { get; }
 
-    public LoginController(ITokenService tokenService, ILogger<LoginController> logger, InnovationGameDbContext context)
+    public LoginController(ITokenService tokenService, ILogger<LoginController> logger, InnovationGameDbContext context, IMapper mapper)
     {
         TokenService = tokenService;
         Logger = logger;
         Context = context;
+        _mapper = mapper;
     }
 
     [Function(nameof(Login))]
@@ -28,37 +32,29 @@ public class LoginController
     {
         LoginRequest? login = await req.ReadFromJsonAsync<LoginRequest>();
 
-        HttpResponseData response = req.CreateResponse();
-
-
         if (login == null)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Invalid request"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request");
         }
 
         User? dbUser = await Context.Users.FirstOrDefaultAsync(u => u.Name == login.Username);
 
         if (dbUser == null)
         {
-            response.StatusCode = HttpStatusCode.NotFound;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "User not found"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found");
         }
 
         if (!BCrypt.Net.BCrypt.Verify(login.Password, dbUser.Password))
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Invalid password"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid password");
         }
 
-        Logger.LogInformation("User {DbUserName} logged in", dbUser.Name);
-        LoginResult result = await TokenService.CreateToken(dbUser);
+        UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
-        response.StatusCode = HttpStatusCode.OK;
-        await response.WriteAsJsonAsync(result);
-        return response;
+        Logger.LogInformation("User {DbUserName} logged in", dbUser.Name);
+        LoginResult result = await TokenService.CreateToken(userDto);
+
+
+        return await req.CreateSuccessResponse(result);
     }
 }

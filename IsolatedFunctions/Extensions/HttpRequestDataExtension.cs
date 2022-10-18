@@ -14,7 +14,7 @@ public static class HttpRequestDataExtension
         {
             message = statusCode.ToString();
         }
-
+        response.StatusCode = statusCode;
         await response.WriteAsJsonAsync(new ErrorDto {Message = message, Code = (int) statusCode}, statusCode);
         return response;
     }

@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Domain.Models;
+using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Resolvers;
@@ -18,24 +19,24 @@ public class LoginRequest
 {
     [OpenApiProperty(Description = "Username for the user logging in.")]
     [JsonRequired]
-    public string Username { get; set; }
+    public string Username { get; set; } = "";
 
     [OpenApiProperty(Description = "Password for the user logging in.")]
     [JsonRequired]
-    public string Password { get; set; }
+    public string Password { get; set; } = "";
 }
 
 public class LoginRequestExample : OpenApiExample<LoginRequest>
 {
-    public override IOpenApiExample<LoginRequest> Build(NamingStrategy NamingStrategy = null)
+    public override IOpenApiExample<LoginRequest> Build(NamingStrategy? namingStrategy = null)
     {
         Examples.Add(OpenApiExampleResolver.Resolve("Erwin",
-            new LoginRequest()
+            new LoginRequest
             {
                 Username = "Erwin",
                 Password = "SuperSecretPassword123!!"
             },
-            NamingStrategy));
+            namingStrategy));
 
         return this;
     }
@@ -57,39 +58,40 @@ public class LoginResult
     [JsonRequired]
     public int ExpiresIn => (int) (Token.ValidTo - DateTime.UtcNow).TotalSeconds;
 
-    public Guid UserId { get; }
+    public UserDto User { get; }
 
-    public LoginResult(JwtSecurityToken token, User user)
+    public LoginResult(JwtSecurityToken token, UserDto user)
     {
         Token = token;
-        UserId = user.Id;
+        User = user;
     }
 }
 
 public interface ITokenService
 {
-    Task<LoginResult> CreateToken(User user);
-    Task<ClaimsPrincipal> GetByValue(string Value);
+    Task<LoginResult> CreateToken(UserDto user);
+    Task<ClaimsPrincipal> GetByValue(string value);
 }
 
 public class TokenIdentityValidationParameters : TokenValidationParameters
 {
-    public TokenIdentityValidationParameters(string Issuer, string Audience, SymmetricSecurityKey SecurityKey)
+    public TokenIdentityValidationParameters(string issuer, string audience, SymmetricSecurityKey securityKey)
     {
         RequireSignedTokens = true;
-        ValidAudience = Audience;
+        ValidAudience = audience;
         ValidateAudience = true;
-        ValidIssuer = Issuer;
+        ValidIssuer = issuer;
         ValidateIssuer = true;
         ValidateIssuerSigningKey = true;
         ValidateLifetime = true;
-        IssuerSigningKey = SecurityKey;
+        IssuerSigningKey = securityKey;
         AuthenticationType = "Bearer";
     }
 }
 
 public class TokenService : ITokenService
 {
+    private readonly IConfiguration _configuration;
     private ILogger Logger { get; }
 
     private string Issuer { get; }
@@ -99,61 +101,61 @@ public class TokenService : ITokenService
     private SigningCredentials Credentials { get; }
     private TokenIdentityValidationParameters ValidationParameters { get; }
 
-    public TokenService(IConfiguration Configuration, ILogger<TokenService> Logger)
+    public TokenService(IConfiguration configuration, ILogger<TokenService> logger)
     {
-        this.Logger = Logger;
+        _configuration = configuration;
+        this.Logger = logger;
 
         Issuer = /*Configuration.GetClassValueChecked("JWT:Issuer", */"DebugIssuer"; //, Logger);
         Audience = /*Configuration.GetClassValueChecked("JWT:Audience", */"DebugAudience"; //, Logger);
         ValidityDuration = TimeSpan.FromDays(1); // Todo: configure
-        string Key = /*Configuration.GetClassValueChecked("JWT:Key", */"DebugKey DebugKey"; //, Logger);
+        const string key = "DebugKey DebugKey"; //, Logger);
 
-        SymmetricSecurityKey SecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Key));
+        SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
 
-        Credentials = new SigningCredentials(SecurityKey, SecurityAlgorithms.HmacSha256Signature);
+        Credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
 
-        ValidationParameters = new TokenIdentityValidationParameters(Issuer, Audience, SecurityKey);
+        ValidationParameters = new TokenIdentityValidationParameters(Issuer, Audience, securityKey);
     }
 
-    public async Task<LoginResult> CreateToken(User user)
+    public async Task<LoginResult> CreateToken(UserDto user)
     {
-        JwtSecurityToken Token = await CreateToken(new Claim[]
+        JwtSecurityToken token = await CreateToken(new Claim[]
         {
             new(ClaimTypes.Role, user.Role.ToString()),
-            new(ClaimTypes.Name, user.Name),
+            new(ClaimTypes.Name, user.Username),
         });
 
-        return new LoginResult(Token, user);
+        return new LoginResult(token, user);
     }
 
-    private async Task<JwtSecurityToken> CreateToken(Claim[] Claims)
+    private async Task<JwtSecurityToken> CreateToken(Claim[] claims)
     {
-        JwtHeader Header = new JwtHeader(Credentials);
+        JwtHeader header = new JwtHeader(Credentials);
 
-        JwtPayload Payload = new JwtPayload(Issuer,
+        JwtPayload payload = new JwtPayload(Issuer,
             Audience,
-            Claims,
+            claims,
             DateTime.UtcNow,
             DateTime.UtcNow.Add(ValidityDuration),
             DateTime.UtcNow);
 
-        JwtSecurityToken SecurityToken = new JwtSecurityToken(Header, Payload);
+        JwtSecurityToken securityToken = new JwtSecurityToken(header, payload);
 
-        return await Task.FromResult(SecurityToken);
+        return await Task.FromResult(securityToken);
     }
 
-    public async Task<ClaimsPrincipal> GetByValue(string Value)
+    public async Task<ClaimsPrincipal> GetByValue(string value)
     {
-        if (Value == null)
+        if (value == null)
         {
             throw new Exception("No Token supplied");
         }
 
-        JwtSecurityTokenHandler Handler = new JwtSecurityTokenHandler();
+        JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 
-        SecurityToken ValidatedToken;
-        ClaimsPrincipal Principal = Handler.ValidateToken(Value, ValidationParameters, out ValidatedToken);
+        ClaimsPrincipal principal = handler.ValidateToken(value, ValidationParameters, out _);
 
-        return await Task.FromResult(Principal);
+        return await Task.FromResult(principal);
     }
 }

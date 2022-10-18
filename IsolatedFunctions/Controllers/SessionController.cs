@@ -207,16 +207,14 @@ public class SessionController
 
         if (session == null)
         {
-            response.StatusCode = HttpStatusCode.NotFound;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Session not found"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session not found");
+
         }
 
         if (session.Status != SessionStatus.Lobby)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Session is no longer valid."});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session is no longer valid.");
+
         }
 
         User? dbUser = await _context.Users.FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
@@ -224,9 +222,7 @@ public class SessionController
         dbUser.Ready = false;
         await _context.SaveChangesAsync();
         LobbyResponseDto sessionDto = _mapper.Map<LobbyResponseDto>(session);
-        response.StatusCode = HttpStatusCode.OK;
-        await response.WriteAsJsonAsync(sessionDto);
-        return response;
+        return await req.CreateSuccessResponse(sessionDto);
     }
 
     [Function("LeaveSession")]

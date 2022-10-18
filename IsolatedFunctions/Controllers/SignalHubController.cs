@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Security.Claims;
 using AutoMapper;
 using DAL.Data;
 using IsolatedFunctions.DTO.SignalDTOs;
@@ -29,6 +30,8 @@ public class SignalHubController
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo, SignalRInvocationContext context)
     {
+        ClaimsPrincipal? principal = executionContext.GetUser();
+
         HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
 
         await response.WriteAsJsonAsync(connectionInfo);
@@ -43,7 +46,17 @@ public class SignalHubController
         SignalRConnectionInfo connectionInfo)
     {
         var principal = executionContext.GetUser();
+        if (principal == null)
+        {
+            return new MessageAndGroup {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
+        }
+
         var dbUser = _context.Users.Include(usr => usr.CurrentSession).FirstOrDefault(usr => usr.Name == principal!.Identity!.Name);
+
+        if (dbUser?.CurrentSession == null)
+        {
+            return new MessageAndGroup{UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User is not in a session")};
+        }
 
         JoinGroupDto? test = await req.ReadFromJsonAsync<JoinGroupDto>();
         // var body = new StreamReader(req.Body).ReadToEnd();

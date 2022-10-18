@@ -33,14 +33,20 @@ public class InnovationGameMappingProfile : Profile
         CreateMap<EditUserDto, User>()
             .ForMember(t => t.Id, opt =>
             {
-                opt.PreCondition(s => s.Id != string.Empty);
+                opt.PreCondition(s => s.Id != "");
                 opt.MapFrom(s => Guid.Parse(s.Id));
             })
-            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Username))
-            .ForMember(dest => dest.Password, opt => opt.MapFrom(src => BCrypt.Net.BCrypt.HashPassword(src.Password)))
-
+            .ForMember(dest => dest.Name, opt =>
+            {
+                opt.PreCondition(s => s.Username != "");
+                opt.MapFrom(src => src.Username);
+            })
+            .ForMember(dest => dest.Password, opt =>
+            {
+                opt.PreCondition(s => s.Password != "");
+                opt.MapFrom(src => BCrypt.Net.BCrypt.HashPassword(src.Password));
+            })
             ;
-
 
 
         CreateMap<CreateCardDto, Card>();

@@ -17,6 +17,13 @@ public class DebugController
         _context = context;
     }
 
+    [Function(nameof(DisconnectTest))]
+    public async Task DisconnectTest([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "debug/dc")] HttpRequestData req,
+        FunctionContext executionContext)
+    {
+        Console.WriteLine("DisconnectTest");
+    }
+
     [Function("SignalTest")]
     public MessageResponse SignalTest([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req,
         FunctionContext executionContext)
@@ -76,6 +83,4 @@ public class DebugController
 
         return req.CreateResponse(HttpStatusCode.OK);
     }
-
-
 }
