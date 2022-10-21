@@ -1,12 +1,15 @@
+
 using System.Text.Json;
 using DAL.Data;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
 using IsolatedFunctions.Services;
+using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Azure;
 
 namespace IsolatedFunctions;
 
@@ -36,10 +39,13 @@ public class Program
                 builder.Services.AddDbContext<InnovationGameDbContext>();
                 builder.Services.AddAutoMapper(typeof(InnovationGameMappingProfile));
                 builder.Services.AddSingleton<ITokenService, TokenService>();
+                builder.Services.AddScoped<DbContext, InnovationGameDbContext>();
+
                 builder.Services.AddOptions<JsonSerializerOptions>()
                     .Configure(options => options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
             })
             .ConfigureServices((context, collection) => ConfigureServices(collection, context.Configuration))
+            .ConfigureOpenApi()
             .Build();
 
         await host.RunAsync();

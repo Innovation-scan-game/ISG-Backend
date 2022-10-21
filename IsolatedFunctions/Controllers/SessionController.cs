@@ -208,13 +208,11 @@ public class SessionController
         if (session == null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session not found");
-
         }
 
         if (session.Status != SessionStatus.Lobby)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session is no longer valid.");
-
         }
 
         User? dbUser = await _context.Users.FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
@@ -247,7 +245,6 @@ public class SessionController
         {
             _context.GameSessions.Remove(dbUser.CurrentSession);
             dbUser.CurrentSession = null;
-
         }
 
         dbUser.CurrentSession = null;
@@ -357,16 +354,15 @@ public class SessionController
     }
 
     [Function(nameof(MatchHistory))]
-    public async Task<HttpResponseData> MatchHistory([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")]
-        HttpRequestData req, FunctionContext executionContext)
+    public async Task<HttpResponseData> MatchHistory(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")] HttpRequestData req, FunctionContext executionContext)
     {
-
-        var sessions = _context.GameSessions.Include(s => s.Players).Include(s => s.Cards).Include(s => s.Responses).ThenInclude(r => r.User).ToList();
+        var sessions = _context.GameSessions.Include(s => s.Players).Include(s => s.Cards).Include(s => s.Responses)
+            .ThenInclude(r => r.User).ToList();
 
         SessionDto[]? dtos = _mapper.Map<SessionDto[]>(sessions);
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(dtos);
         return response;
-
     }
 }

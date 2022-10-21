@@ -59,24 +59,33 @@ public class UserController
     }
 
     [Function(nameof(GetAllUsers))]
-    public async Task<UserDto[]> GetAllUsers([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "userList")] HttpRequestData req)
+    public async Task<HttpResponseData> GetAllUsers(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")]
+        HttpRequestData req)
     {
         List<User> users = await _context.Users.ToListAsync();
-        return _mapper.Map<UserDto[]>(users);
+        var userDtos = _mapper.Map<UserDto[]>(users);
+
+        return await req.CreateSuccessResponse(userDtos);
     }
 
     [Function(nameof(GetUserById))]
-    public async Task<UserDto> GetUserById([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")] HttpRequestData req,
+    public async Task<HttpResponseData> GetUserById(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")]
+        HttpRequestData req,
         string id)
     {
         User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
-        return _mapper.Map<UserDto>(user);
+
+        return await req.CreateSuccessResponse(_mapper.Map<UserDto>(user));
     }
 
     [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
     [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Creates a new user",
         Description = "Creates a new user based on the data given")]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(UserDto), Summary = "The created user",
+        Description = "The created user")]
     public async Task<HttpResponseData> CreateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/register")]
         HttpRequestData req, FunctionContext executionContext)
@@ -243,7 +252,7 @@ public class UserController
 
 
         _context.Users.Remove(user);
-        // await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
         return req.CreateResponse(HttpStatusCode.OK);
     }
 }
