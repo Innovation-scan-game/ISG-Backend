@@ -7,6 +7,7 @@ using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
 namespace IsolatedFunctions.Controllers;
 
@@ -22,6 +23,10 @@ public class CardController
     }
 
     [Function(nameof(GetAllCards))]
+    // [OpenApiOperation(operationId: "GetCards", tags: new[] {"cards"}, Summary = "Gets a list of all the cards",
+    //     Description = "Gets a list of all the cards that are currently in the game")]
+    // [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardListDto),
+    //     Description = "The OK response")]
     public async Task<HttpResponseData> GetAllCards([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards")] HttpRequestData req)
     {
         List<Card> cards = _context.Cards.ToList();
@@ -33,17 +38,19 @@ public class CardController
     }
 
     [Function(nameof(GetCardById))]
-    public async Task<CardDto> GetCardById([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")] HttpRequestData req, string id)
+    public async Task<HttpResponseData> GetCardById(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")]
+        HttpRequestData req, string id)
     {
         Card? card = _context.Cards.FirstOrDefault(c => c.Id == Guid.Parse(id));
-        return _mapper.Map<CardDto>(card);
+        return await req.CreateSuccessResponse(_mapper.Map<CardDto>(card));
     }
 
     [Function(nameof(DeleteCard))]
     public async Task<HttpResponseData> DeleteCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "cards/{id}")]
-        HttpRequestData req, string id,
-        FunctionContext executionContext)
+        HttpRequestData req,
+        FunctionContext executionContext, string id)
     {
         var response = req.CreateResponse();
 
