@@ -77,6 +77,11 @@ public class UserController
     {
         User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
 
+        if (user == null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found.");
+        }
+
         return await req.CreateSuccessResponse(_mapper.Map<UserDto>(user));
     }
 

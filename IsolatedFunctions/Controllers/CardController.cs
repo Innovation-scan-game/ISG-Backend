@@ -43,6 +43,12 @@ public class CardController
         HttpRequestData req, string id)
     {
         Card? card = _context.Cards.FirstOrDefault(c => c.Id == Guid.Parse(id));
+
+        if (card == null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found.");
+        }
+
         return await req.CreateSuccessResponse(_mapper.Map<CardDto>(card));
     }
 
