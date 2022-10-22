@@ -38,7 +38,7 @@ public class UserControllerTests
             .Options;
 
         _context = new InnovationGameDbContext(options);
-
+       
         _admin = new User
         {
             Id = Guid.NewGuid(),
@@ -58,7 +58,7 @@ public class UserControllerTests
         };
 
         _context.Users.Add(_admin);
-        _context.Users.Add(_admin);
+        _context.Users.Add(_user);
         await _context.SaveChangesAsync();
 
         var logFactory = new Mock<ILoggerFactory>();
@@ -89,13 +89,25 @@ public class UserControllerTests
     }
 
     [Test]
+    public async Task TestGetAllUsers()
+    {
+        HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        HttpResponseData response = await _userController.GetAllUsers(req);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(_context.Users.Count(), Is.EqualTo(2));
+    }
+
+
+    [Test]
     public async Task TestCreateUser()
     {
         CreateUserDto createUserDto = new CreateUserDto
         {
-            Username = "testUser",
-            Password = "testPassword",
-            Email = "test@mail.com"
+            Username = "testUser2",
+            Password = "testPassword2",
+            Email = "test2@mail.com"
         };
         string json = JsonConvert.SerializeObject(createUserDto);
 
@@ -105,18 +117,53 @@ public class UserControllerTests
 
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(_context.Users.Count(), Is.EqualTo(2));
+        Assert.That(_context.Users.Count(), Is.EqualTo(3));
     }
 
     [Test]
-    public async Task TestGetAllUsers()
+    public async Task TestCreateUserUsingAlreadyExistingName()
+    {
+        CreateUserDto createUserDto = new CreateUserDto
+        {
+            Username = "testUser",
+            Password = "testPassword2",
+            Email = "test@mail.com"
+        };
+        string json = JsonConvert.SerializeObject(createUserDto);
+
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
+
+        HttpResponseData response = await _userController.CreateUser(req, req.FunctionContext);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task TestGetUserByID()
+    {
+      
+        HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        var res = await _userController.GetUserById(req, _user.Id.ToString());
+
+        res.Body.Position = 0;
+        UserDto result = JsonConvert.DeserializeObject<UserDto>(await new StreamReader(res.Body).ReadToEndAsync());
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(result.Username, Is.EqualTo(_user.Name));
+        Assert.That(result.Email, Is.EqualTo(_user.Email));
+    }
+
+    [Test]
+    public async Task TestGetUserByIDUsingWrongID()
     {
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
-        HttpResponseData response = await _userController.GetAllUsers(req);
+        var res = await _userController.GetUserById(req, Guid.NewGuid().ToString());
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        res.Body.Position = 0;
+        UserDto result = JsonConvert.DeserializeObject<UserDto>(await new StreamReader(res.Body).ReadToEndAsync());
 
-        Assert.That(_context.Users.Count(), Is.EqualTo(2));
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     private async Task<string> GetLoginToken(string username, string password)
@@ -142,7 +189,7 @@ public class UserControllerTests
     {
         EditUserDto editUserDto = new EditUserDto
         {
-            Email = "test@mail.com"
+            Email = "testnew@mail.com"
         };
         string json = JsonConvert.SerializeObject(editUserDto);
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json, token: _token, method: "put");
@@ -153,7 +200,28 @@ public class UserControllerTests
             var res = await _userController!.UpdateUser(req, req.FunctionContext);
 
             Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That((await _context!.Users.FindAsync(_admin.Id)).Email, Is.EqualTo("test@mail.com"));
+            Assert.That((await _context!.Users.FindAsync(_admin.Id)).Email, Is.EqualTo("testnew@mail.com"));
+        }
+
+        await _middleware!.Invoke(req.FunctionContext, Next);
+    }
+
+    [Test]
+    public async Task TestUpdateOwnUserChangingNameToAlreadyExistingName()
+    {
+        EditUserDto editUserDto = new EditUserDto
+        {
+            Email = "test@mail.com"
+        };
+        string json = JsonConvert.SerializeObject(editUserDto);
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json, token: _token, method: "put");
+
+
+        async Task Next(FunctionContext context)
+        {
+            var res = await _userController!.UpdateUser(req, req.FunctionContext);
+
+            Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         }
 
         await _middleware!.Invoke(req.FunctionContext, Next);
@@ -198,6 +266,42 @@ public class UserControllerTests
         await _middleware!.Invoke(req.FunctionContext, Next);
     }
 
+    [Test]
+    public async Task TestUpdateOtherUserChangingNameToAlreadyExistingName()
+    {
+        User userToEdit = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "editUser",
+            Email = "edit@mail.com",
+            Role = UserRoleEnum.User,
+            Password = "pw"
+        };
+        _context.Users.Add(userToEdit);
+        await _context.SaveChangesAsync();
+
+        EditUserDto editUserDto = new EditUserDto
+        {
+            Id = userToEdit.Id.ToString(),
+            Email = "test@mail.com",
+            Username = "testUser",
+            Password = "newPassword"
+        };
+
+        string json = JsonConvert.SerializeObject(editUserDto);
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json, token: _token, method: "put");
+
+        async Task Next(FunctionContext context)
+        {
+            HttpResponseData response = await _userController!.UpdateUser(req, req.FunctionContext);
+
+            User? editedUser = await _context.Users.FindAsync(userToEdit.Id);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        }
+
+        await _middleware!.Invoke(req.FunctionContext, Next);
+    }
 
     [Test]
     public async Task TestDeleteUser()
@@ -217,11 +321,11 @@ public class UserControllerTests
 
         async Task Next(FunctionContext context)
         {
-            Assert.That(_context.Users.Count(), Is.EqualTo(2));
+            Assert.That(_context.Users.Count(), Is.EqualTo(3));
 
             HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id.ToString());
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(_context.Users.Count(), Is.EqualTo(1));
+            Assert.That(_context.Users.Count(), Is.EqualTo(2));
         }
 
         await _middleware!.Invoke(req.FunctionContext, Next);
@@ -249,7 +353,7 @@ public class UserControllerTests
         {
             HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id.ToString());
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-            Assert.That(_context.Users.Count(), Is.EqualTo(2));
+            Assert.That(_context.Users.Count(), Is.EqualTo(3));
         }
 
         await _middleware!.Invoke(req.FunctionContext, Next);
