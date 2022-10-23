@@ -2,11 +2,14 @@
 using AutoMapper;
 using DAL.Data;
 using Domain.Models;
+using IsolatedFunctions.DTO;
+using IsolatedFunctions.DTO.GameSessionDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -28,6 +31,10 @@ public class LoginController
     }
 
     [Function(nameof(Login))]
+    [OpenApiOperation(operationId: "PostLogin", tags: new[] {"login"}, Summary = "Logs in",
+        Description = "A user logs in")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LoginResponseDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> Login([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
     {
         LoginRequest? login = await req.ReadFromJsonAsync<LoginRequest>();
