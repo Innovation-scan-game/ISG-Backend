@@ -49,6 +49,10 @@ public class UserController
     }
 
     [Function(nameof(UploadProfilePicture))]
+    [OpenApiOperation(operationId: "PostPicture", tags: new[] {"user"}, Summary = "Upload Picture",
+        Description = "Uploads a user's profile picture ")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> UploadProfilePicture(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")]
         HttpRequestData req,
@@ -59,6 +63,10 @@ public class UserController
     }
 
     [Function(nameof(GetAllUsers))]
+    [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
+        Description = "Get a list of all users created")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> GetAllUsers(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")]
         HttpRequestData req)
@@ -70,6 +78,10 @@ public class UserController
     }
 
     [Function(nameof(GetUserById))]
+    [OpenApiOperation(operationId: "GetUserId", tags: new[] {"user"}, Summary = "Get user by Id",
+        Description = "Get a users by ID")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> GetUserById(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")]
         HttpRequestData req,
@@ -117,6 +129,10 @@ public class UserController
     }
 
     [Function(nameof(UploadAvatar))]
+    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] {"user"}, Summary = "upload a avatar",
+        Description = "Upload a avatar to the user ")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> UploadAvatar(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
         HttpRequestData req, FunctionContext executionContext)
