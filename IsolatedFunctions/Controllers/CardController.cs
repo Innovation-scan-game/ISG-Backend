@@ -23,10 +23,10 @@ public class CardController
     }
 
     [Function(nameof(GetAllCards))]
-    // [OpenApiOperation(operationId: "GetCards", tags: new[] {"cards"}, Summary = "Gets a list of all the cards",
-    //     Description = "Gets a list of all the cards that are currently in the game")]
-    // [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardListDto),
-    //     Description = "The OK response")]
+    [OpenApiOperation(operationId: "GetCards", tags: new[] {"cards"}, Summary = "Gets a list of all the cards",
+         Description = "Gets a list of all the cards that are currently in the game")]
+     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardListDto),
+         Description = "The OK response")]
     public async Task<HttpResponseData> GetAllCards([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards")] HttpRequestData req)
     {
         List<Card> cards = _context.Cards.ToList();
@@ -38,6 +38,10 @@ public class CardController
     }
 
     [Function(nameof(GetCardById))]
+    [OpenApiOperation(operationId: "GetCardId", tags: new[] {"cards"}, Summary = "Gets a card by ID",
+        Description = "Gets a single card that is currently in the game")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> GetCardById(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")]
         HttpRequestData req, string id)
@@ -53,6 +57,10 @@ public class CardController
     }
 
     [Function(nameof(DeleteCard))]
+    [OpenApiOperation(operationId: "DeleteCard", tags: new[] {"cards"}, Summary = "Deletes a card by ID",
+        Description = "Deletes a single card")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> DeleteCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "cards/{id}")]
         HttpRequestData req,
@@ -89,6 +97,10 @@ public class CardController
     }
 
     [Function(nameof(CreateCard))]
+    [OpenApiOperation(operationId: "CreateCard", tags: new[] {"cards"}, Summary = "Creates a new card",
+        Description = "Create a single card")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> CreateCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "cards/create")]
         HttpRequestData req, FunctionContext executionContext)
@@ -127,6 +139,10 @@ public class CardController
     }
 
     [Function(nameof(EditCard))]
+    [OpenApiOperation(operationId: "EditCard", tags: new[] {"cards"}, Summary = "Edits a card by ID",
+        Description = "Edits a single card")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
+        Description = "The OK response")]
     public async Task<HttpResponseData> EditCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "cards/edit")]
         HttpRequestData req, FunctionContext executionContext)
