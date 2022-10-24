@@ -30,7 +30,6 @@ public class SessionController
     }
 
     [Function("SubmitAnswer")]
-    
     [OpenApiOperation(operationId: "PostAnswer", tags: new[] {"session"}, Summary = "Posts a answer",
         Description = "Post a answer in the current session")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(SessionResponseDto),
@@ -43,7 +42,6 @@ public class SessionController
         if (user == null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
-            // return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
         var dbUser = await _context.Users.Include(u => u.CurrentSession).FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
@@ -76,13 +74,11 @@ public class SessionController
         return new MessageResponse {UserResponse = responseData, Message = message};
     }
 
-    [Function("SendMessage")]
-    
+    [Function(nameof(SendMessage))]
     [OpenApiOperation(operationId: "PostMessage", tags: new[] {"session"}, Summary = "Posts a message",
         Description = "Post a message in the current session")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(SessionResponseDto),
         Description = "The OK response")]
-    
     public async Task<MessageResponse> SendMessage(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/message")]
         HttpRequestData req, FunctionContext executionContext)
@@ -109,8 +105,7 @@ public class SessionController
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
-    [Function("NextRound")]
-    
+    [Function(nameof(NextRound))]
     [OpenApiOperation(operationId: "PostRound", tags: new[] {"session"}, Summary = "Stars a new round",
         Description = "Stars a new round in the current session")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GameStateDto),
@@ -150,12 +145,11 @@ public class SessionController
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
-    [Function("EndSession")]
+    [Function(nameof(EndSession))]
     [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "End Session",
         Description = "End the current session")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GameStateDto),
         Description = "The OK response")]
-    
     public async Task<MessageResponse> EndSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/end")]
         HttpRequestData req, FunctionContext executionContext)
@@ -199,7 +193,7 @@ public class SessionController
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
-    [Function("JoinSession")]
+    [Function(nameof(JoinSession))]
     [OpenApiOperation(operationId: "GetSession", tags: new[] {"session"}, Summary = "Joins a game",
         Description = "Joins a session that has not started yet")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(JoinRequestDto),
@@ -249,12 +243,11 @@ public class SessionController
         return await req.CreateSuccessResponse(sessionDto);
     }
 
-    [Function("LeaveSession")]
+    [Function(nameof(LeaveSession))]
     [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "Leaves a game",
         Description = "Leaves a session ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(JoinRequestDto),
         Description = "The OK response")]
-    
     public async Task<MessageResponse> LeaveSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/leave")]
         HttpRequestData req, FunctionContext executionContext)
@@ -272,20 +265,25 @@ public class SessionController
             Arguments = new object[] {dbUser}
         };
 
+        // Host left; Remove all players from session
         if (dbUser.CurrentSession.HostId == dbUser.Id)
         {
-            _context.GameSessions.Remove(dbUser.CurrentSession);
-            dbUser.CurrentSession = null;
+            foreach (User player in dbUser.CurrentSession.Players)
+            {
+                player.CurrentSession = null;
+                player.Ready = false;
+            }
+
+            dbUser.CurrentSession.Status = SessionStatus.Cancelled;
         }
 
-        dbUser.CurrentSession = null;
         dbUser.Ready = false;
         await _context.SaveChangesAsync();
 
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
-    [Function("CreateSession")]
+    [Function(nameof(CreateSession))]
     [OpenApiOperation(operationId: "GetSession", tags: new[] {"session"}, Summary = "Creates a session",
         Description = "Stars a session that has not created yet")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDto),
@@ -316,7 +314,7 @@ public class SessionController
         return response;
     }
 
-    [Function("StartSession")]
+    [Function(nameof(StartSession))]
     [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "Starts a game",
         Description = "Starts a session that has not started yet")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(StartGameDto),
@@ -365,12 +363,11 @@ public class SessionController
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
-    [Function("ChangeReadyState")]
+    [Function(nameof(ChangeReadyState))]
     [OpenApiOperation(operationId: "PostState", tags: new[] {"session"}, Summary = "Changes Ready state",
         Description = "Allows users to change whether they are ready or not")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(RequestGameStateDto),
         Description = "The OK response")]
-    
     [SignalROutput(HubName = "Hub")]
     public async Task<SignalRMessageAction> ChangeReadyState(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/ready")]
@@ -403,7 +400,8 @@ public class SessionController
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(HistoryDto),
         Description = "The OK response")]
     public async Task<HttpResponseData> MatchHistory(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")] HttpRequestData req, FunctionContext executionContext)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")]
+        HttpRequestData req, FunctionContext executionContext)
     {
         var sessions = _context.GameSessions.Include(s => s.Players).Include(s => s.Cards).Include(s => s.Responses)
             .ThenInclude(r => r.User).ToList();
