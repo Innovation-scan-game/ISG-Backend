@@ -57,6 +57,7 @@ public class CardControllerTests
     [TearDown]
     public async Task TearDown()
     {
+        // Resets the content of the database lists to only the setup
         _context.Users.RemoveRange(_context.Users.ToList());
         _context.Cards.RemoveRange(_context.Cards.ToList());
         await _context.SaveChangesAsync();
@@ -65,6 +66,7 @@ public class CardControllerTests
     [Test]
     public async Task TestCreateCard()
     {
+        // Setup a card to create
          CreateCardDto createCardDto = new CreateCardDto
         {
             Name = "TestCard2",
@@ -73,12 +75,12 @@ public class CardControllerTests
         };
         
         string json = JsonConvert.SerializeObject(createCardDto);
-
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-
+        // Call the controller endpoint
         HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
 
-
+        // Assert that the card is created and that the new count equals to 2
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         Assert.That(_context.Cards.Count(), Is.EqualTo(2));
     }
@@ -86,21 +88,23 @@ public class CardControllerTests
     [Test]
     public async Task TestCreateCardProvidingInvalidCardData()
     {
+        // Create a card with invalid content 
         CreateCardDto createCardDto = null;
 
         string json = JsonConvert.SerializeObject(createCardDto);
-
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-
+        // Call the controller endpoint
         HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
 
-
+        // Assert that response is 400 BadRequest, because the data is invalid
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]
     public async Task TestCreateCardUsingExistingName()
     {
+        // Create a card with a name that already exists in the test db
         CreateCardDto createCardDto = new CreateCardDto
         {
             Name = "CardName",
@@ -109,21 +113,23 @@ public class CardControllerTests
         };
 
         string json = JsonConvert.SerializeObject(createCardDto);
-
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-
+        // Call the controller endpoint
         HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
 
-
+        // Assert that response is 400 BadRequest, because the card already exists
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]
     public async Task TestGetAllCards()
     {
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        // Call the controller endpoint
         var res = await _cardController.GetAllCards(req);
-
+        // Assert that the response is OK and that the Cards count is 1
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(_context.Cards.Count(), Is.EqualTo(1));
     }
@@ -131,6 +137,7 @@ public class CardControllerTests
     [Test]
     public async Task TestGetCardById()
     {
+        // Create new card that will be used to search on ID and add to the test db
         Card newCard = new Card
         {
             Id = Guid.NewGuid(),
@@ -142,15 +149,17 @@ public class CardControllerTests
         _context.Cards.Add(newCard);
         await _context.SaveChangesAsync();
 
-
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        // Call the controller endpoint using the ID of the newly created card
         var res = await _cardController.GetCardById(req, newCard.Id.ToString());
 
+        // Retrieve the card
         res.Body.Position = 0;
         CardDto result = JsonConvert.DeserializeObject<CardDto>(await new StreamReader(res.Body).ReadToEndAsync());
 
+        // Assert that the response is OK, that the card has been retrieved and added to the test db
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
         Assert.That(result.Id, Is.EqualTo(newCard.Id));
         Assert.That(result.CardName, Is.EqualTo(newCard.Name));
         Assert.That(_context.Cards.Count(), Is.EqualTo(2));
@@ -159,18 +168,23 @@ public class CardControllerTests
     [Test]
     public async Task TestGetUserByIDUsingWrongID()
     {
+        // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        // Call the controller endpoint with unknown ID
         var res = await _cardController.GetCardById(req, Guid.NewGuid().ToString());
 
+        // Retrieve the card
         res.Body.Position = 0;
         UserDto result = JsonConvert.DeserializeObject<UserDto>(await new StreamReader(res.Body).ReadToEndAsync());
 
+        // Assert that the card could not be found
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     [Test]
     public async Task TestEditCard()
     {
+        // Create new card to edit and add it to the test db
         Card cardToEdit = new Card
         {
             Id = Guid.NewGuid(),
@@ -181,6 +195,7 @@ public class CardControllerTests
         _context.Cards.Add(cardToEdit);
         await _context.SaveChangesAsync();
 
+        // Create EditCardDto to create changes to an already existing card
         EditCardDto editCardDto = new EditCardDto
         {
             Id = cardToEdit.Id.ToString(),
@@ -190,14 +205,18 @@ public class CardControllerTests
         };
 
         string json = JsonConvert.SerializeObject(editCardDto);
+        // Forge a request containing an auth token
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json, token: _token, method: "put");
 
         async Task Next(FunctionContext context)
         {
+            // Call the controller endpoint
             HttpResponseData response = await _cardController!.EditCard(req, req.FunctionContext);
 
+            // Retrieve the newly edited card if possible
             Card? editedCard = await _context.Cards.FindAsync(cardToEdit.Id);
 
+            // Assert that the response is OK and the card has been edited 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(editedCard?.Name, Is.EqualTo("CardNameChanged"));
             Assert.That(editedCard?.Body, Is.EqualTo("CardBodyChanged"));
@@ -210,6 +229,7 @@ public class CardControllerTests
     [Test]
     public async Task TestEditCardUsingUnknownID()
     {
+        // Create EditCardDto to edit a card with an unknown ID
         EditCardDto editCardDto = new EditCardDto
         {
             Id = Guid.NewGuid().ToString(),
@@ -219,11 +239,14 @@ public class CardControllerTests
         };
 
         string json = JsonConvert.SerializeObject(editCardDto);
+        // Forge a request containing an auth token
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json, token: _token, method: "put");
 
         async Task Next(FunctionContext context)
         {
+            // Call the controller endpoint
             HttpResponseData response = await _cardController!.EditCard(req, req.FunctionContext);
+            // Assert that the response is a BadRequest, because the ID was unknown
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         }
 
