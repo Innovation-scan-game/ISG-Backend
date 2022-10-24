@@ -34,7 +34,7 @@ public class LoginController
     [OpenApiOperation(operationId: "PostLogin", tags: new[] {"login"}, Summary = "Logs in",
         Description = "A user logs in")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LoginResponseDto),
-        Description = "The OK response")]
+        Description = "the requested user logged in")]
     public async Task<HttpResponseData> Login([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
     {
         LoginRequest? login = await req.ReadFromJsonAsync<LoginRequest>();
