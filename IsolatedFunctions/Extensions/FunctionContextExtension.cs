@@ -23,12 +23,7 @@ public static class FunctionContextExtension
 
     public static bool IsAdmin(this FunctionContext context)
     {
-        var user = context.GetUser();
-        if (user != null && user.IsInRole("Admin"))
-        {
-            return true;
-        }
-
-        return false;
+        ClaimsPrincipal? user = context.GetUser();
+        return user != null && user.IsInRole("Admin");
     }
 }

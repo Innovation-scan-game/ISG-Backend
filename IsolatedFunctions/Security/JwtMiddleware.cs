@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Security.Claims;
+using IsolatedFunctions.Controllers;
 using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
@@ -24,7 +25,7 @@ public class JwtMiddleware : IFunctionsWorkerMiddleware
         // The OnConnected function is invoked by the signalR client potentially via websocket.
         // Websockets do not support custom headers (see https://github.com/dotnet/aspnetcore/issues/40659) so we skip validation here.
         // Imo this is no security issue since the websocket connection can only be established by providing a valid token in the first place.
-        bool isOnConnected = context.FunctionDefinition.Name == "onconnected";
+        bool isOnConnected = context.FunctionDefinition.Name == nameof(SignalHubController.OnConnected);
 
         if (!isOnConnected && context.BindingContext.BindingData.TryGetValue("Headers", out object? headerData))
         {
