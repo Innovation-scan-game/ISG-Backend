@@ -16,15 +16,15 @@ public static class Helpers
         return string.Concat(hash.Select(b => b.ToString("x2")));
     }
 
+#pragma warning disable CA1416
     public static Stream ResizeImage(FilePart filePart)
     {
-
         Image image = Image.FromStream(filePart.Data);
         var stream = new MemoryStream();
 
         if (image.Width > MaxWidth)
         {
-            var resized = image.GetThumbnailImage(MaxWidth, (MaxWidth * image.Height) / image.Width, null, IntPtr.Zero);
+            var resized = image.GetThumbnailImage(MaxWidth, MaxWidth * image.Height / image.Width, null, IntPtr.Zero);
             resized.Save(stream, image.RawFormat);
         }
         else
@@ -36,4 +36,5 @@ public static class Helpers
         stream.Position = 0;
         return stream;
     }
+#pragma warning restore CA1416
 }
