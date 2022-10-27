@@ -9,18 +9,12 @@ public class GameSession
     public Guid Id { get; set; } = Guid.NewGuid();
     public string SessionCode { get; set; } = "";
     public DateTime Created { get; set; }
-
     public SessionStatus Status { get; set; }
-    // public Guid HostId { get; set; }
-
-    // one to one
     public Guid HostId { get; set; }
-
-    // public virtual User Host { get; set; }
     public int RoundDurationSeconds { get; set; }
     public int Rounds { get; set; }
     public int CurrentRound { get; set; }
-    public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
+    public ICollection<Card> Cards { get; set; } = new List<Card>();
 
     public ICollection<User> Players { get; set; } = new List<User>();
 

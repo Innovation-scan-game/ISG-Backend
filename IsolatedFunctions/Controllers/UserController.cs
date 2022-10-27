@@ -49,6 +49,10 @@ public class UserController
     }
 
     [Function(nameof(UploadProfilePicture))]
+    [OpenApiOperation(operationId: "PostPicture", tags: new[] {"user"}, Summary = "Upload Picture",
+        Description = "Uploads a user's profile picture ")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The uploaded picture")]
     public async Task<HttpResponseData> UploadProfilePicture(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")]
         HttpRequestData req,
@@ -59,24 +63,46 @@ public class UserController
     }
 
     [Function(nameof(GetAllUsers))]
-    public async Task<UserDto[]> GetAllUsers([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "userList")] HttpRequestData req)
+    [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
+        Description = "Get a list of all users created")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "List of all users")]
+    public async Task<HttpResponseData> GetAllUsers(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")]
+        HttpRequestData req)
     {
         List<User> users = await _context.Users.ToListAsync();
-        return _mapper.Map<UserDto[]>(users);
+        var userDtos = _mapper.Map<UserDto[]>(users);
+
+        return await req.CreateSuccessResponse(userDtos);
     }
 
     [Function(nameof(GetUserById))]
-    public async Task<UserDto> GetUserById([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")] HttpRequestData req,
+    [OpenApiOperation(operationId: "GetUserId", tags: new[] {"user"}, Summary = "Get user by Id",
+        Description = "Get a users by ID")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The requested User")]
+    public async Task<HttpResponseData> GetUserById(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")]
+        HttpRequestData req,
         string id)
     {
         User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
-        return _mapper.Map<UserDto>(user);
+
+        if (user == null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found.");
+        }
+
+        return await req.CreateSuccessResponse(_mapper.Map<UserDto>(user));
     }
 
     [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
     [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Creates a new user",
         Description = "Creates a new user based on the data given")]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(UserDto), Summary = "The created user",
+        Description = "The created user")]
     public async Task<HttpResponseData> CreateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/register")]
         HttpRequestData req, FunctionContext executionContext)
@@ -103,6 +129,10 @@ public class UserController
     }
 
     [Function(nameof(UploadAvatar))]
+    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] {"user"}, Summary = "upload a avatar",
+        Description = "Upload a avatar to the user ")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The uploaded avatar")]
     public async Task<HttpResponseData> UploadAvatar(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
         HttpRequestData req, FunctionContext executionContext)
@@ -157,6 +187,10 @@ public class UserController
 
 
     [Function(nameof(UpdateUser))]
+    [OpenApiOperation(operationId: "UpdateUser", tags: new[] {"user"}, Summary = "updates a user",
+        Description = "Updates a user ")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "the updated user")]
     public async Task<HttpResponseData> UpdateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user/edit")]
         HttpRequestData req, FunctionContext executionContext)
@@ -214,6 +248,10 @@ public class UserController
     }
 
     [Function(nameof(DeleteUser))]
+    [OpenApiOperation(operationId: "DeleteUser", tags: new[] {"user"}, Summary = "deletes a user",
+        Description = "deletes a user by ID")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+        Description = "The deleted user")]
     public async Task<HttpResponseData> DeleteUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "user/{id}")]
         HttpRequestData req, FunctionContext executionContext,
@@ -243,7 +281,7 @@ public class UserController
 
 
         _context.Users.Remove(user);
-        // await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
         return req.CreateResponse(HttpStatusCode.OK);
     }
 }

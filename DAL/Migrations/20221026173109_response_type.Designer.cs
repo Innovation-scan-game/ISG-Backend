@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(InnovationGameDbContext))]
-    partial class InnovationGameDbContextModelSnapshot : ModelSnapshot
+    [Migration("20221026173109_response_type")]
+    partial class response_type
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,7 +36,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("SessionsId");
 
-                    b.ToTable("CardGameSession", (string)null);
+                    b.ToTable("CardGameSession");
                 });
 
             modelBuilder.Entity("Domain.Models.Card", b =>
@@ -59,7 +61,7 @@ namespace DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Cards", (string)null);
+                    b.ToTable("Cards");
                 });
 
             modelBuilder.Entity("Domain.Models.GameSession", b =>
@@ -92,7 +94,7 @@ namespace DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GameSessions", (string)null);
+                    b.ToTable("GameSessions");
                 });
 
             modelBuilder.Entity("Domain.Models.SessionResponse", b =>
@@ -126,7 +128,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SessionResponses", (string)null);
+                    b.ToTable("SessionResponses");
                 });
 
             modelBuilder.Entity("Domain.Models.User", b =>
@@ -164,7 +166,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("SessionId");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("CardGameSession", b =>

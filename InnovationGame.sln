@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IsolatedFunctions", "IsolatedFunctions\IsolatedFunctions.csproj", "{FE1C5080-CBEA-458C-8839-7135BE2433EF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InnovationGameTests", "InnovationGameTests\InnovationGameTests.csproj", "{8A1CB117-1FB8-4286-BD87-CE638F344966}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{FE1C5080-CBEA-458C-8839-7135BE2433EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE1C5080-CBEA-458C-8839-7135BE2433EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE1C5080-CBEA-458C-8839-7135BE2433EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A1CB117-1FB8-4286-BD87-CE638F344966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A1CB117-1FB8-4286-BD87-CE638F344966}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A1CB117-1FB8-4286-BD87-CE638F344966}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A1CB117-1FB8-4286-BD87-CE638F344966}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
