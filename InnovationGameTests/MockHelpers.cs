@@ -77,7 +77,7 @@ public static class MockHelpers
     public static async Task<string> GetLoginToken(string username, string password)
     {
         Mock<ILogger<LoginController>> logger = new();
-        LoginController loginController = new(CreateTokenService(), logger.Object, CreateDbContext(), CreateMapper());
+        LoginController loginController = new(CreateTokenService(), logger.Object, CreateMapper(), new UserService(CreateDbContext()));
 
         LoginRequest loginRequest = new()
         {

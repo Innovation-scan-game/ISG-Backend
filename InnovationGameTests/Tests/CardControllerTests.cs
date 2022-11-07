@@ -47,7 +47,7 @@ public class CardControllerTests
         await _context.SaveChangesAsync();
 
         IMapper mapper = MockHelpers.CreateMapper();
-        _cardController = new CardController(_context, mapper);
+        _cardController = new CardController(mapper, new CardService(_context));
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
         TokenService tokenService = new TokenService(null, new Mock<ILogger<TokenService>>().Object);

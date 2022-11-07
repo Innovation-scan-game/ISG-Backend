@@ -34,18 +34,16 @@ public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute
 public class UserController
 {
     private readonly ILogger<LoginController> _logger;
-    // private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
 
     private IUserService UserService { get; }
 
     private readonly BlobContainerClient _blobContainerClient;
 
-    public UserController(ILoggerFactory loggerFactory, InnovationGameDbContext context, IUserService userService, IMapper mapper,
+    public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper,
         BlobServiceClient blobServiceClient)
     {
         UserService = userService;
-        // _context = context;
         _logger = loggerFactory.CreateLogger<LoginController>();
         _mapper = mapper;
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
