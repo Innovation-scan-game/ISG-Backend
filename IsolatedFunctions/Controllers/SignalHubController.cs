@@ -6,6 +6,7 @@ using IsolatedFunctions.DTO.SignalDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Outputs;
+using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
@@ -14,12 +15,15 @@ namespace IsolatedFunctions.Controllers;
 
 public class SignalHubController
 {
-    private readonly InnovationGameDbContext _context;
+    // private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
 
-    public SignalHubController(InnovationGameDbContext context, IMapper mapper)
+    private IUserService UserService { get; }
+
+    public SignalHubController(IMapper mapper, IUserService userService)
     {
-        _context = context;
+        UserService = userService;
+        // _context = context;
         _mapper = mapper;
     }
 
@@ -55,12 +59,13 @@ public class SignalHubController
             return new MessageAndGroupResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
-        var dbUser = _context.Users.Include(usr => usr.CurrentSession).FirstOrDefault(usr => usr.Name == principal.Identity!.Name);
+        var dbUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         if (dbUser?.CurrentSession == null)
         {
             return new MessageAndGroupResponse
-                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User is not in a session")};
+                // {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User is not in a session")};
+                {UserResponse = req.CreateResponse(HttpStatusCode.OK)};
         }
 
         JoinGroupDto? joinGroupDto = await req.ReadFromJsonAsync<JoinGroupDto>();
@@ -80,6 +85,26 @@ public class SignalHubController
         };
 
         return new MessageAndGroupResponse {MessageAction = msg, GroupAction = grp, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
+    }
+
+
+    [Function(nameof(OnDisconnected))]
+    public MessageAndGroupResponse OnDisconnected(
+        [SignalRTrigger(hubName: "Hub", category: "connections", @event: "disconnected")]
+        SignalRInvocationContext context)
+    {
+        var groupAction = new SignalRGroupAction(SignalRGroupActionType.RemoveAll)
+        {
+            ConnectionId = context.ConnectionId,
+        };
+
+        var messageAction = new SignalRMessageAction("playerLeft")
+        {
+            ConnectionId = context.ConnectionId,
+            Arguments = new object[] {context.ConnectionId}
+        };
+
+        return new MessageAndGroupResponse {GroupAction = groupAction, MessageAction = messageAction};
     }
 
 

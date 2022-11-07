@@ -10,11 +10,11 @@ using HttpMultipartParser;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Helper;
+using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 
@@ -34,15 +34,18 @@ public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute
 public class UserController
 {
     private readonly ILogger<LoginController> _logger;
-    private readonly InnovationGameDbContext _context;
+    // private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
+
+    private IUserService UserService { get; }
 
     private readonly BlobContainerClient _blobContainerClient;
 
-    public UserController(ILoggerFactory loggerFactory, InnovationGameDbContext context, IMapper mapper,
+    public UserController(ILoggerFactory loggerFactory, InnovationGameDbContext context, IUserService userService, IMapper mapper,
         BlobServiceClient blobServiceClient)
     {
-        _context = context;
+        UserService = userService;
+        // _context = context;
         _logger = loggerFactory.CreateLogger<LoginController>();
         _mapper = mapper;
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
@@ -71,7 +74,7 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")]
         HttpRequestData req)
     {
-        List<User> users = await _context.Users.ToListAsync();
+        List<User> users = await UserService.GetAllUsers();
         var userDtos = _mapper.Map<UserDto[]>(users);
 
         return await req.CreateSuccessResponse(userDtos);
@@ -87,7 +90,7 @@ public class UserController
         HttpRequestData req,
         string id)
     {
-        User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
+        User? user = await UserService.GetUser(Guid.Parse(id));
 
         if (user == null)
         {
@@ -115,16 +118,17 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request.");
         }
 
-        User? existing = _context.Users.FirstOrDefault(u => u.Name == createUserDto.Username || u.Email == createUserDto.Email);
 
-        if (existing != null)
+        if (await UserService.GetExistingUser(createUserDto.Username, createUserDto.Email) != null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User already exists");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Username or Email already exists.");
         }
 
         User user = _mapper.Map<User>(createUserDto);
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await UserService.AddUser(user);
+
+        // _context.Users.Add(user);
+        // await _context.SaveChangesAsync();
         return await req.CreateSuccessResponse(createUserDto);
     }
 
@@ -144,7 +148,7 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
         }
 
-        User? loggedInUser = _context.Users.FirstOrDefault(u => u.Name == principal.Identity!.Name);
+        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         var body = await MultipartFormDataParser.ParseAsync(req.Body);
 
@@ -173,7 +177,7 @@ public class UserController
 
         loggedInUser!.Picture = blob.Uri.ToString();
 
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(loggedInUser);
 
         Console.WriteLine(file.ContentType);
 
@@ -202,7 +206,8 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to change users.");
         }
 
-        User? loggedInUser = _context.Users.FirstOrDefault(u => u.Name == principal.Identity!.Name);
+        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
+
         EditUserDto? editUser = await req.ReadFromJsonAsync<EditUserDto>();
 
         User? target;
@@ -217,7 +222,7 @@ public class UserController
                 return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid user id");
             }
 
-            target = _context.Users.FirstOrDefault(u => u.Id == id);
+            target = await UserService.GetUser(id);
             if (target == null)
             {
                 return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
@@ -230,18 +235,18 @@ public class UserController
         }
 
 
-        if (editUser.Username != loggedInUser.Name && _context.Users.Any(u => u.Name == editUser.Username))
+        if (editUser.Username != loggedInUser.Name && await UserService.GetUserByName(editUser.Username) != null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That username is already taken.");
         }
 
-        if (editUser.Email != loggedInUser.Email && _context.Users.Any(u => u.Email == editUser.Email))
+        if (editUser.Email != loggedInUser.Email && await UserService.GetUserByEmail(editUser.Email) != null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That email is already taken.");
         }
 
         _mapper.Map(editUser, target);
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(target);
 
         var result = _mapper.Map<UserDto>(target);
         return await req.CreateSuccessResponse(result);
@@ -265,9 +270,9 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to delete users.");
         }
 
-        User? loggedInUser = _context.Users.FirstOrDefault(u => u.Name == principal.Identity!.Name);
+        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
-        User? user = await _context.Users.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
+        User? user = await UserService.GetUser(Guid.Parse(id));
 
         if (user == null)
         {
@@ -280,8 +285,9 @@ public class UserController
         }
 
 
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
+        await UserService.DeleteUser(user.Id);
+        // _context.Users.Remove(user);
+        // await _context.SaveChangesAsync();
         return req.CreateResponse(HttpStatusCode.OK);
     }
 }
