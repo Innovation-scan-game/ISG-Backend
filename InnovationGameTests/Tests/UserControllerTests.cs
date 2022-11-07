@@ -38,7 +38,7 @@ public class UserControllerTests
             .Options;
 
         _context = new InnovationGameDbContext(options);
-       
+
         _admin = new User
         {
             Id = Guid.NewGuid(),
@@ -69,10 +69,10 @@ public class UserControllerTests
 
         var jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
-        _userController = new UserController(logFactory.Object, _context, mapper, blob.Object);
+        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
 
         var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
-        _loginController = new LoginController(tokenService, loginLogger.Object, _context, mapper);
+        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
         _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);
 
