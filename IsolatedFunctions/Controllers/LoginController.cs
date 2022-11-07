@@ -18,7 +18,6 @@ public class LoginController
     private readonly IMapper _mapper;
     private IUserService UserService { get; }
 
-    // private InnovationGameDbContext Context { get; }
     private ILogger Logger { get; }
     private ITokenService TokenService { get; }
 
@@ -39,24 +38,23 @@ public class LoginController
     {
         LoginRequest? login = await req.ReadFromJsonAsync<LoginRequest>();
 
-        if (login == null)
+        if (login is null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid login request");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid login request!");
         }
 
-        // User? dbUser = await Context.Users.FirstOrDefaultAsync(u => u.Name == login.Username);
 
         User? dbUser = await UserService.GetUserByName(login.Username);
 
 
-        if (dbUser == null)
+        if (dbUser is null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found");
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found!");
         }
 
         if (!BCrypt.Net.BCrypt.Verify(login.Password, dbUser.Password))
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid password");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid password!");
         }
 
         UserDto userDto = _mapper.Map<UserDto>(dbUser);

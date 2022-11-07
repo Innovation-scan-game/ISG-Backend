@@ -13,7 +13,6 @@ namespace IsolatedFunctions.Controllers;
 
 public class CardController
 {
-    // private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
 
     private ICardService CardService { get; }
@@ -21,10 +20,11 @@ public class CardController
     public CardController(IMapper mapper, ICardService cardService)
     {
         CardService = cardService;
-        // _context = context;
         _mapper = mapper;
     }
-
+    /// <summary>
+    ///     Gets a list of all the cards that are currently in the game.
+    /// </summary>
     [Function(nameof(GetAllCards))]
     [OpenApiOperation(operationId: "GetCards", tags: new[] {"cards"}, Summary = "Gets a list of all the cards",
         Description = "Gets a list of all the cards that are currently in the game")]
@@ -32,12 +32,8 @@ public class CardController
         Description = "All Cards")]
     public async Task<HttpResponseData> GetAllCards([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards")] HttpRequestData req)
     {
-        // List<Card> cards = _context.Cards.ToList();
         List<Card> cards = await CardService.GetAllCards();
-        List<CardDto> cardDtOs = _mapper.Map<List<CardDto>>(cards);
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(cardDtOs);
-        return response;
+        return await req.CreateSuccessResponse(_mapper.Map<CardDto>(cards));
     }
 
     [Function(nameof(GetCardById))]
@@ -49,13 +45,12 @@ public class CardController
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")]
         HttpRequestData req, string id)
     {
-        // Card? card = _context.Cards.FirstOrDefault(c => c.Id == Guid.Parse(id));
 
         Card? card = await CardService.GetCardById(Guid.Parse(id));
 
         if (card == null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found.");
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found!");
         }
 
         return await req.CreateSuccessResponse(_mapper.Map<CardDto>(card));
@@ -71,36 +66,29 @@ public class CardController
         HttpRequestData req,
         FunctionContext executionContext, string id)
     {
-        var response = req.CreateResponse();
+        
 
         if (!executionContext.IsAdmin())
         {
-            response.StatusCode = HttpStatusCode.Unauthorized;
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
         if (!Guid.TryParse(id, out Guid cardId))
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteStringAsync("Invalid card id");
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Invalid card id!");
         }
 
-        // Card? card = _context.Cards.FirstOrDefault(c => c.Id == cardId);
         Card? card = await CardService.GetCardById(cardId);
         if (card == null)
         {
-            response.StatusCode = HttpStatusCode.NotFound;
-            await response.WriteStringAsync("Card not found");
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound,"Card not found!");
         }
 
         await CardService.RemoveCard(card);
-        // _context.Cards.Remove(card);
-        // await _context.SaveChangesAsync();
-        response.StatusCode = HttpStatusCode.OK;
-        await response.WriteStringAsync($"Card '{card.Name}' deleted");
-        return response;
+        
+        return await req.CreateSuccessResponse(HttpStatusCode.OK);
+        //await response.WriteStringAsync($"Card '{card.Name}' deleted");
+        
     }
 
     [Function(nameof(CreateCard))]
@@ -113,38 +101,28 @@ public class CardController
         HttpRequestData req, FunctionContext executionContext)
 
     {
-        var response = req.CreateResponse();
+        if (!executionContext.IsAdmin())
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
+        
         if (req.Body.Length == 0)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest);
         }
-
 
         CreateCardDto? cardDto = await req.ReadFromJsonAsync<CreateCardDto>();
         if (cardDto == null)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteStringAsync("Invalid card data");
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid card data!");
         }
 
         if (await CardService.CardExists(cardDto.Name))
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteStringAsync("Card with this name already exists");
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Card with this name already exists!");
         }
 
-        Card card = _mapper.Map<Card>(cardDto);
-
-
-        await CardService.AddCard(card);
-        // _context.Cards.Add(card);
-        // await _context.SaveChangesAsync();
-
-        response.StatusCode = HttpStatusCode.Created;
-        return response;
+        return await req.CreateSuccessResponse(_mapper.Map<CardDto>(cardDto));
     }
 
     [Function(nameof(EditCard))]
@@ -157,34 +135,35 @@ public class CardController
         HttpRequestData req, FunctionContext executionContext)
 
     {
-        HttpResponseData response = req.CreateResponse();
+        if (!executionContext.IsAdmin())
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
 
         if (req.Body.Length == 0)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"No input!");
         }
 
         EditCardDto? editCardDto = await req.ReadFromJsonAsync<EditCardDto>();
+        if (editCardDto is null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Invalid input!");
+        }
 
-        // Card? dbCard = _context.Cards.FirstOrDefault(c => c.Id == Guid.Parse(editCardDto!.Id));
         Card? dbCard = await CardService.GetCardById(Guid.Parse(editCardDto!.Id));
 
-        if (dbCard == null)
+        if (dbCard is null)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteStringAsync("Card with this id does not exist");
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Card with this ID does not exist!");
         }
 
         dbCard.Name = editCardDto.Name;
         dbCard.Body = editCardDto.Body;
-
         dbCard.Type = (CardTypeEnum) editCardDto.Type;
+        
         await CardService.UpdateCard(dbCard);
-        // _context.Cards.Update(dbCard);
-        // await _context.SaveChangesAsync();
-        response.StatusCode = HttpStatusCode.OK;
-        return response;
+        return await req.CreateSuccessResponse(HttpStatusCode.OK);
+        
     }
 }
