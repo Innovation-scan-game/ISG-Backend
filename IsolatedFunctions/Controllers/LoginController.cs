@@ -1,16 +1,14 @@
 ﻿using System.Net;
 using AutoMapper;
-using DAL.Data;
 using Domain.Models;
 using IsolatedFunctions.DTO;
-using IsolatedFunctions.DTO.GameSessionDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Services;
+using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace IsolatedFunctions.Controllers;
@@ -18,16 +16,18 @@ namespace IsolatedFunctions.Controllers;
 public class LoginController
 {
     private readonly IMapper _mapper;
-    private InnovationGameDbContext Context { get; }
+    private IUserService UserService { get; }
+
+    // private InnovationGameDbContext Context { get; }
     private ILogger Logger { get; }
     private ITokenService TokenService { get; }
 
-    public LoginController(ITokenService tokenService, ILogger<LoginController> logger, InnovationGameDbContext context, IMapper mapper)
+    public LoginController(ITokenService tokenService, ILogger<LoginController> logger, IMapper mapper, IUserService userService)
     {
         TokenService = tokenService;
         Logger = logger;
-        Context = context;
         _mapper = mapper;
+        UserService = userService;
     }
 
     [Function(nameof(Login))]
@@ -41,10 +41,13 @@ public class LoginController
 
         if (login == null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid login request");
         }
 
-        User? dbUser = await Context.Users.FirstOrDefaultAsync(u => u.Name == login.Username);
+        // User? dbUser = await Context.Users.FirstOrDefaultAsync(u => u.Name == login.Username);
+
+        User? dbUser = await UserService.GetUserByName(login.Username);
+
 
         if (dbUser == null)
         {
