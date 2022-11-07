@@ -24,4 +24,9 @@ public class SessionResponseService : ISessionResponseService
     {
         return await _context.SessionResponses.FirstOrDefaultAsync(x => x.Id == id);
     }
+
+    public async Task<bool> UserCompletedQuestion(Guid userId, int roundIndex)
+    {
+        return await _context.SessionResponses.FirstOrDefaultAsync(s => s.User.Id == userId && s.CardNumber == roundIndex) is null;
+    }
 }
