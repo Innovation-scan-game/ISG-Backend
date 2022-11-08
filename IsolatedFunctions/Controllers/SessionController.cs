@@ -1,10 +1,8 @@
 ﻿using System.Net;
 using System.Security.Claims;
 using AutoMapper;
-using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
-using IsolatedFunctions.DTO;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.DTO.GameSessionDTOs;
 using IsolatedFunctions.DTO.SignalDTOs;
@@ -15,61 +13,77 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.EntityFrameworkCore;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
 public class SessionController
 {
     private readonly IMapper _mapper;
-    private readonly InnovationGameDbContext _context;
 
-    public SessionController(IMapper mapper, InnovationGameDbContext context)
+    private IUserService UserService { get; }
+    private ISessionService SessionService { get; }
+    private ICardService CardService { get; }
+
+    private ISessionResponseService SessionResponseService { get; }
+
+
+    public SessionController(IMapper mapper, IUserService userService, ISessionService sessionService,
+        ICardService cardService,
+        ISessionResponseService sessionResponseService)
     {
+        UserService = userService;
+        SessionService = sessionService;
+        CardService = cardService;
+        SessionResponseService = sessionResponseService;
+
         _mapper = mapper;
-        _context = context;
     }
 
     [Function("SubmitAnswer")]
     [OpenApiOperation(operationId: "SubmitAnswer", tags: new[] {"session"}, Summary = "Submit an answer",
         Description = "Submit an answer in the current session")]
     [OpenApiRequestBody("application/json", typeof(SubmitAnswerDto), Description = "Answer to submit")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(SessionResponseDto),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(SessionResponseDto),
         Description = "The submitted answer")]
     public async Task<MessageResponse> SubmitAnswer(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/submit")]
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
-        if (user == null)
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
-        var dbUser = await _context.Users.Include(u => u.CurrentSession!.Responses).FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
         SubmitAnswerDto? dto = await req.ReadFromJsonAsync<SubmitAnswerDto>();
 
-        // TODO: Check if user already submitted an answer for this round
+        // TODO: Verify functionality
+
+        if (await SessionResponseService.UserCompletedQuestion(dbUser.Id, dbUser.CurrentSession!.CurrentRound))
+        {
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You already answered this question!")};
+        }
 
 
-        if (dto == null)
+        if (dto is null)
         {
             return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest)};
         }
 
         SessionResponse response = new()
         {
-            User = dbUser!,
-            Session = dbUser!.CurrentSession!,
+            User = dbUser,
+            Session = dbUser.CurrentSession!,
             CreatedAt = DateTime.Now,
             CardNumber = dbUser.CurrentSession!.CurrentRound,
             Response = dto.Answer,
             ResponseType = SessionResponseType.Answer
         };
-        _context.SessionResponses.Add(response);
 
-        await _context.SaveChangesAsync();
-
-
+        await SessionResponseService.AddSessionResponse(response);
         UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
         var message = new SignalRMessageAction("newAnswer")
@@ -78,9 +92,7 @@ public class SessionController
             Arguments = new object[] {userDto, dto.Answer}
         };
 
-        var responseData = req.CreateResponse(HttpStatusCode.OK);
-        // await responseData.WriteAsJsonAsync(response.Response);
-
+        HttpResponseData responseData = req.CreateResponse(HttpStatusCode.OK);
         return new MessageResponse {UserResponse = responseData, Message = message};
     }
 
@@ -94,13 +106,11 @@ public class SessionController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
-
-        if (user == null)
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
-
-        User dbUser = _context.Users.Include(u => u.CurrentSession).FirstOrDefault(u => u.Name == user.Identity!.Name)!;
 
         UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
@@ -108,6 +118,7 @@ public class SessionController
 
         var message = new SignalRMessageAction("newMessage")
         {
+            //TODO: Check for NULL
             GroupName = dbUser.CurrentSession!.SessionCode,
             Arguments = new object[] {userDto, dbUser.CurrentSession.CurrentRound, chatMessage!.Message}
         };
@@ -126,26 +137,31 @@ public class SessionController
 
     {
         ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
 
-        if (user == null)
+        if (dbUser is null)
         {
             return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Unauthorized)};
         }
 
-        User dbUser = _context.Users.Include(usr => usr.CurrentSession!.Cards).Include(usr => usr.CurrentSession.Responses)
-            .FirstOrDefault(u => u.Name == user.Identity!.Name)!;
+        if (dbUser.CurrentSession is null)
+        {
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You are not in a session!")};
+        }
 
         // Check if executing user is session host or not
         if (dbUser.CurrentSession!.HostId != dbUser.Id)
         {
             return new MessageResponse
-                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Forbidden, "You are not the lobby host.")};
+            {
+                UserResponse = await req.CreateErrorResponse(HttpStatusCode.Forbidden, "You are not the lobby host.")
+            };
         }
 
         ConclusionDto? dto = await req.ReadFromJsonAsync<ConclusionDto>();
         if (dto != null && !string.IsNullOrEmpty(dto.Conclusion))
         {
-            _context.SessionResponses.Add(new SessionResponse
+            await SessionResponseService.AddSessionResponse(new SessionResponse
             {
                 User = dbUser,
                 Session = dbUser.CurrentSession,
@@ -164,14 +180,14 @@ public class SessionController
         else
         {
             return new MessageResponse
-                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Game is already finished.")};
+            {
+                UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Game is already finished.")
+            };
         }
 
-        // _context.Users.Update(dbUser);
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(dbUser);
 
-
-        var message = new SignalRMessageAction("nextRound")
+        SignalRMessageAction message = new("nextRound")
         {
             GroupName = dbUser.CurrentSession.SessionCode,
             Arguments = new object[] {dbUser.CurrentSession.CurrentRound}
@@ -181,8 +197,8 @@ public class SessionController
     }
 
     [Function(nameof(EndSession))]
-    [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "End Session",
-        Description = "End the current session")]
+    [OpenApiOperation(operationId: "EndSession", tags: new[] {"session"}, Summary = "End Session",
+        Description = "End the session currently in progress")]
     [OpenApiRequestBody("application/json", typeof(ConclusionDto), Required = false)]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Session ended")]
     public async Task<MessageResponse> EndSession(
@@ -190,26 +206,29 @@ public class SessionController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
 
-        if (user == null)
+        if (dbUser is null)
         {
-            return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Unauthorized)};
         }
 
-        User dbUser = _context.Users.Include(usr => usr.CurrentSession!.Cards).FirstOrDefault(u => u.Name == user.Identity!.Name)!;
 
         // Check if executing user is session host or not
-        if (dbUser.CurrentSession!.HostId != dbUser.Id)
+        bool isSessionHost = dbUser.CurrentSession!.HostId == dbUser.Id;
+        if (!isSessionHost)
         {
-            return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Forbidden)};
+            return new MessageResponse
+                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Forbidden, "You are not the lobby host.")};
         }
 
         dbUser.CurrentSession.Status = SessionStatus.Completed;
+        await UserService.UpdateUser(dbUser);
 
         ConclusionDto? dto = await req.ReadFromJsonAsync<ConclusionDto>();
         if (dto != null && !string.IsNullOrEmpty(dto.Conclusion))
         {
-            _context.SessionResponses.Add(new SessionResponse
+            await SessionResponseService.AddSessionResponse(new SessionResponse
             {
                 User = dbUser,
                 Session = dbUser.CurrentSession,
@@ -220,11 +239,6 @@ public class SessionController
             });
         }
 
-
-
-        await _context.SaveChangesAsync();
-
-
         SignalRMessageAction message = new("endSession")
         {
             GroupName = dbUser.CurrentSession.SessionCode,
@@ -232,14 +246,13 @@ public class SessionController
         };
 
         // Remove all users from session
-        await _context.Users.Include(usr => usr.CurrentSession).Where(u => u.CurrentSession!.Id == dbUser.CurrentSession.Id)
+        await UserService.GetUsersInSession(dbUser.CurrentSession.Id)
             .ForEachAsync(usr =>
             {
                 usr.CurrentSession = null;
                 usr.Ready = false;
+                UserService.UpdateUser(usr);
             });
-
-        await _context.SaveChangesAsync();
 
 
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
@@ -248,36 +261,30 @@ public class SessionController
     [Function(nameof(JoinSession))]
     [OpenApiOperation(operationId: "GetSession", tags: new[] {"session"}, Summary = "Joins a game",
         Description = "Joins a session that has not started yet")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(JoinRequestDto),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(JoinRequestDto),
         Description = "joins the requested session")]
     public async Task<HttpResponseData> JoinSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/join")]
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
 
-        var response = req.CreateResponse();
-
-        if (user == null)
+        if (dbUser is null)
         {
-            response.StatusCode = HttpStatusCode.Unauthorized;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Unauthorized"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
         JoinRequestDto? joinRequestDto = await req.ReadFromJsonAsync<JoinRequestDto>();
-        if (joinRequestDto == null)
+        if (joinRequestDto is null)
         {
-            response.StatusCode = HttpStatusCode.BadRequest;
-            await response.WriteAsJsonAsync(new ErrorDto {Message = "Bad request"});
-            return response;
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request");
         }
 
-        GameSession? session =
-            await _context.GameSessions.Include(s => s.Players)
-                .FirstOrDefaultAsync(session => session.SessionCode == joinRequestDto.SessionAuth && session.Status == SessionStatus.Lobby);
+        GameSession? session = await SessionService.GetSessionByJoinCode(joinRequestDto.SessionAuth);
 
-        if (session == null)
+        if (session is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session not found");
         }
@@ -287,10 +294,10 @@ public class SessionController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Session is no longer valid.");
         }
 
-        User? dbUser = await _context.Users.FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
-        dbUser!.CurrentSession = session;
+        dbUser.CurrentSession = session;
         dbUser.Ready = false;
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(dbUser);
+
         LobbyResponseDto sessionDto = _mapper.Map<LobbyResponseDto>(session);
         return await req.CreateSuccessResponse(sessionDto);
     }
@@ -298,26 +305,27 @@ public class SessionController
     [Function(nameof(LeaveSession))]
     [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "Leaves a game",
         Description = "Leaves a session ")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(JoinRequestDto),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(JoinRequestDto),
         Description = "Leaves the joined session")]
     public async Task<MessageResponse> LeaveSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/leave")]
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
-        if (user == null)
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+
+        if (dbUser is null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
-        User? dbUser = await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
-        var message = new SignalRMessageAction("playerLeft")
+        SignalRMessageAction message = new SignalRMessageAction("playerLeft")
         {
-            GroupName = dbUser!.CurrentSession!.SessionCode,
+            GroupName = dbUser.CurrentSession!.SessionCode,
             Arguments = new object[] {dbUser}
         };
 
-        // Host left; Remove all players from session
         if (dbUser.CurrentSession.HostId == dbUser.Id)
         {
             var session = dbUser.CurrentSession;
@@ -331,7 +339,7 @@ public class SessionController
         }
 
         dbUser.Ready = false;
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(dbUser);
 
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
@@ -339,7 +347,8 @@ public class SessionController
     [Function(nameof(CreateSession))]
     [OpenApiOperation(operationId: "GetSession", tags: new[] {"session"}, Summary = "Creates a session",
         Description = "Stars a session that has not created yet")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(LobbyResponseDto),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(LobbyResponseDto),
         Description = "Creates a new session")]
     public async Task<HttpResponseData> CreateSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/create")]
@@ -347,73 +356,82 @@ public class SessionController
         FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
-        if (user == null)
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null)
         {
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
-        User? dbUser = await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == user.Identity!.Name);
 
         GameSession session = GameSession.New();
-        session.HostId = dbUser!.Id;
-        _context.GameSessions.Add(session);
+        session.HostId = dbUser.Id;
+        await SessionService.AddSession(session);
 
         dbUser.CurrentSession = session;
         dbUser.Ready = false;
+        await UserService.UpdateUser(dbUser);
 
-        await _context.SaveChangesAsync();
-
-        var response = req.CreateResponse(HttpStatusCode.OK);
         LobbyResponseDto sessionDto = _mapper.Map<LobbyResponseDto>(session);
-        await response.WriteAsJsonAsync(sessionDto);
-        return response;
+        return await req.CreateSuccessResponse(sessionDto);
     }
 
     [Function(nameof(StartSession))]
     [OpenApiOperation(operationId: "PostSession", tags: new[] {"session"}, Summary = "Starts a game",
         Description = "Starts a session that has not started yet")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(StartGameDto),
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(StartGameDto),
         Description = "Session started")]
     public async Task<MessageResponse> StartSession(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/start")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        SessionOptionsDto? options = await req.ReadFromJsonAsync<SessionOptionsDto>();
+        ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
 
-        Random rnd = new Random();
-        List<Card> dbCards = _context.Cards.ToList().OrderBy(_ => rnd.Next()).Take(options!.Rounds).OrderBy(c => c.Id).ToList();
-
-        List<CardDto> cards = _mapper.Map<List<CardDto>>(dbCards);
-
-        var principal = executionContext.GetUser();
-        if (principal == null)
+        if (dbUser is null)
         {
-            return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Unauthorized)};
         }
 
-        User? user = await _context.Users.Include(u => u.CurrentSession).FirstOrDefaultAsync(u => u.Name == principal.Identity!.Name);
+        SessionOptionsDto? options = await req.ReadFromJsonAsync<SessionOptionsDto>();
+
+        if (options is null)
+        {
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid options")};
+        }
+
+        if (dbUser.CurrentSession is null)
+        {
+            return new MessageResponse
+                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You are not in a session")};
+        }
+
+        Random rnd = new Random();
+        List<Card> randomizedCards = (await CardService.GetAllCards()).OrderBy(_ => rnd.Next()).Take(options.Rounds)
+            .OrderBy(c => c.Id).ToList();
+
+        List<CardDto> cards = _mapper.Map<List<CardDto>>(randomizedCards);
 
 
-        user!.CurrentSession!.Rounds = options.Rounds;
-        user.CurrentSession.Status = SessionStatus.Active;
-        user.CurrentSession.Cards = dbCards;
-        user.CurrentSession.RoundDurationSeconds = options.RoundDuration;
-        await _context.SaveChangesAsync();
+        dbUser.CurrentSession!.Rounds = options.Rounds;
+        dbUser.CurrentSession.Status = SessionStatus.Active;
+        dbUser.CurrentSession.Cards = randomizedCards;
+        dbUser.CurrentSession.RoundDurationSeconds = options.RoundDuration;
 
+        await UserService.UpdateUser(dbUser);
 
         StartGameDto responseDto = new()
         {
             Cards = cards,
-            RoundDuration = options.RoundDuration,
+            RoundDuration = options.RoundDuration
         };
 
 
-        var message = new SignalRMessageAction("startGame")
+        SignalRMessageAction message = new SignalRMessageAction("startGame")
         {
-            GroupName = user.CurrentSession.SessionCode,
+            GroupName = dbUser.CurrentSession.SessionCode,
             Arguments = new object[] {responseDto}
         };
-
 
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
@@ -421,7 +439,8 @@ public class SessionController
     [Function(nameof(ChangeReadyState))]
     [OpenApiOperation(operationId: "ChangeReadyState", tags: new[] {"session"}, Summary = "Change Ready state",
         Description = "Allows users in a lobby to change whether they are ready or not.")]
-    [OpenApiRequestBody("application/json", typeof(ChangeReadinessDto), Description = "The ready state to change to", Required = true)]
+    [OpenApiRequestBody("application/json", typeof(ChangeReadinessDto), Description = "The ready state to change to",
+        Required = true)]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ready state was changed")]
     public async Task<MessageResponse> ChangeReadyState(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "session/ready")]
@@ -431,15 +450,19 @@ public class SessionController
         FunctionContext executionContext)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
-        User? user = await _context.Users.Include(usr => usr.CurrentSession)
-            .FirstOrDefaultAsync(usr => usr.Name == principal!.Identity!.Name);
+        User? user = await UserService.GetUserByName(principal?.Identity?.Name!);
+
+        if (user is null)
+        {
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.Unauthorized)};
+        }
 
         ChangeReadinessDto? readiness = await req.ReadFromJsonAsync<ChangeReadinessDto>();
 
-        user!.Ready = readiness!.Ready;
+        user.Ready = readiness!.Ready;
         LobbyPlayerDto playerDto = _mapper.Map<LobbyPlayerDto>(user);
 
-        await _context.SaveChangesAsync();
+        await UserService.UpdateUser(user);
 
         return new MessageResponse
         {
@@ -454,19 +477,17 @@ public class SessionController
 
     [Function(nameof(MatchHistory))]
     [OpenApiOperation(operationId: "MatchHistory", tags: new[] {"session"}, Summary = "Show Match History",
-        Description = "Shows the match history of a session")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(SessionDto[]),
-        Description = "the requested match history")]
+        Description = "Shows the match history")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json",
+        bodyType: typeof(SessionDto[]),
+        Description = "The match history")]
     public async Task<HttpResponseData> MatchHistory(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "session/history")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        var sessions = _context.GameSessions.Include(s => s.Players).Include(s => s.Cards).Include(s => s.Responses)
-            .ThenInclude(r => r.User).ToList();
+        List<GameSession> sessions = await SessionService.GetSessions();
 
-        SessionDto[]? dtos = _mapper.Map<SessionDto[]>(sessions);
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(dtos);
-        return response;
+        SessionDto[]? matches = _mapper.Map<SessionDto[]>(sessions);
+        return await req.CreateSuccessResponse(matches);
     }
 }

@@ -45,17 +45,14 @@ public class InnovationGameMappingProfile : Profile
             {
                 opt.PreCondition(s => s.Password != "");
                 opt.MapFrom(src => BCrypt.Net.BCrypt.HashPassword(src.Password));
-            })
-            ;
+            });
 
 
         CreateMap<CreateCardDto, Card>();
 
         CreateMap<Card, CardDto>()
             .ForMember(dest => dest.CardName, opt => opt.MapFrom(src => src.Name))
-            .ForMember(dest => dest.CardBody, opt => opt.MapFrom(src => src.Body))
-            // .ReverseMap()
-            ;
+            .ForMember(dest => dest.CardBody, opt => opt.MapFrom(src => src.Body));
 
         CreateMap<GameSession, LobbyResponseDto>();
 

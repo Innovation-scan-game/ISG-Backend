@@ -3,32 +3,25 @@ using Azure.Storage.Blobs;
 using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
-using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
-using IsolatedFunctions.DTO.UserDTOs;
-using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests.Tests;
 
 public class LoginControllerTests
 {
-    private InnovationGameDbContext? _context;
+    private InnovationGameDbContext _context = null!;
 
-    private LoginController? _loginController;
-    private UserController? _userController;
+    private LoginController _loginController = null!;
 
     private User? _admin;
     private User? _user;
 
-    private string? _token;
-    private JwtMiddleware? _middleware;
 
     [SetUp]
     public async Task Setup()
@@ -67,14 +60,10 @@ public class LoginControllerTests
 
         var loginLogger = new Mock<ILogger<LoginController>>();
 
-        var jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
-        _userController = new UserController(logFactory.Object, _context, mapper, blob.Object);
+        var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
+        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
-        var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
-        _loginController = new LoginController(tokenService, loginLogger.Object, _context, mapper);
-
-        _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);
     }
 
 
@@ -85,13 +74,15 @@ public class LoginControllerTests
         _context.Users.RemoveRange(_context.Users.ToList());
         await _context.SaveChangesAsync();
     }
+
     // TODO: FIX FIRST TEST
     [Test]
-    public async Task TestUserLoggingIn() {
+    public async Task TestUserLoggingIn()
+    {
         LoginRequest loginRequest = new LoginRequest
         {
             Username = _user.Name,
-            Password = _user.Password,
+            Password = "userPassword",
         };
         string json = JsonConvert.SerializeObject(loginRequest);
 
@@ -103,12 +94,13 @@ public class LoginControllerTests
         // Assert that the response is OK and that the user has been added to the test db
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
+
     [Test]
     public async Task TestUserLoggingInUsingInvalidData()
     {
         //Creates a loginRequest with invalid data
         LoginRequest loginRequest = null;
-       
+
         string json = JsonConvert.SerializeObject(loginRequest);
 
         // Forge a request
@@ -118,6 +110,7 @@ public class LoginControllerTests
         // Assert that the response is a Badrequest because the data is invalid
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
+
     [Test]
     public async Task TestUserLoggingInUsingUnknownName()
     {
@@ -136,6 +129,7 @@ public class LoginControllerTests
         // Assert that the response is a NotFound
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+
     [Test]
     public async Task TestUserLoggingInUsingWrongPassword()
     {

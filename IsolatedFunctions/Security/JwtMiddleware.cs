@@ -1,11 +1,10 @@
 ﻿using System.Net.Http.Headers;
 using System.Security.Claims;
-using IsolatedFunctions.Controllers;
-using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Services;
 
 namespace IsolatedFunctions.Security;
 
@@ -22,12 +21,8 @@ public class JwtMiddleware : IFunctionsWorkerMiddleware
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        // The OnConnected function is invoked by the signalR client potentially via websocket.
-        // Websockets do not support custom headers (see https://github.com/dotnet/aspnetcore/issues/40659) so we skip validation here.
-        // Imo this is no security issue since the websocket connection can only be established by providing a valid token in the first place.
-        bool isOnConnected = context.FunctionDefinition.Name == nameof(SignalHubController.OnConnected);
 
-        if (!isOnConnected && context.BindingContext.BindingData.TryGetValue("Headers", out object? headerData))
+        if (context.BindingContext.BindingData.TryGetValue("Headers", out object? headerData))
         {
             string headersString = headerData!.ToString()!;
 
@@ -45,11 +40,11 @@ public class JwtMiddleware : IFunctionsWorkerMiddleware
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e.Message);
+                    Logger.LogError(e, "Error while parsing authorization header");
+                    return;
                 }
             }
         }
-
         await next(context);
     }
 }

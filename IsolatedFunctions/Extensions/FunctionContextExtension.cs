@@ -21,9 +21,5 @@ public static class FunctionContextExtension
         return context.GetUser() != null;
     }
 
-    public static bool IsAdmin(this FunctionContext context)
-    {
-        ClaimsPrincipal? user = context.GetUser();
-        return user != null && user.IsInRole("Admin");
-    }
+
 }

@@ -5,7 +5,6 @@ using DAL.Data;
 using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.Infrastructure;
-using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests;
 
@@ -77,7 +77,7 @@ public static class MockHelpers
     public static async Task<string> GetLoginToken(string username, string password)
     {
         Mock<ILogger<LoginController>> logger = new();
-        LoginController loginController = new(CreateTokenService(), logger.Object, CreateDbContext(), CreateMapper());
+        LoginController loginController = new(CreateTokenService(), logger.Object, CreateMapper(), new UserService(CreateDbContext()));
 
         LoginRequest loginRequest = new()
         {

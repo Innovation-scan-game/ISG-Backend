@@ -7,28 +7,26 @@ using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests.Tests;
 
 public class UserControllerTests
 {
-    private InnovationGameDbContext? _context;
-
-    private LoginController? _loginController;
-    private UserController? _userController;
-
-    private User? _admin;
-    private User? _user;
+    private InnovationGameDbContext _context = null!;
+    private LoginController _loginController = null!;
+    private UserController _userController = null!;
+    private User _admin = null!;
+    private User _user = null!;
 
     private string? _token;
-    private JwtMiddleware? _middleware;
+    private JwtMiddleware _middleware = null!;
 
     [SetUp]
     public async Task Setup()
@@ -38,7 +36,7 @@ public class UserControllerTests
             .Options;
 
         _context = new InnovationGameDbContext(options);
-       
+
         _admin = new User
         {
             Id = Guid.NewGuid(),
@@ -66,13 +64,12 @@ public class UserControllerTests
         var blob = new Mock<BlobServiceClient>();
 
         var loginLogger = new Mock<ILogger<LoginController>>();
-
         var jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
-        _userController = new UserController(logFactory.Object, _context, mapper, blob.Object);
+        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
 
-        var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
-        _loginController = new LoginController(tokenService, loginLogger.Object, _context, mapper);
+        var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
+        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
         _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);
 
@@ -93,12 +90,21 @@ public class UserControllerTests
     public async Task TestGetAllUsers()
     {
         // Forge a request
-        HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(token: _token);
         // Call the controller endpoint
-        HttpResponseData response = await _userController.GetAllUsers(req);
         // Assert that the response is OK and that the users are retrieved
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(_context.Users.Count(), Is.EqualTo(2));
+
+
+        async Task Next(FunctionContext context)
+        {
+            // Call the controller endpoint
+            HttpResponseData response = await _userController.GetAllUsers(req, req.FunctionContext);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(_context.Users.Count(), Is.EqualTo(2));
+        }
+
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
 
@@ -209,10 +215,10 @@ public class UserControllerTests
             var res = await _userController!.UpdateUser(req, req.FunctionContext);
             // Assert that the response is OK and that the testuser' email equals to the new email
             Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That((await _context!.Users.FindAsync(_admin.Id)).Email, Is.EqualTo("testnew@mail.com"));
+            Assert.That((await _context.Users.FindAsync(_admin.Id))?.Email, Is.EqualTo("testnew@mail.com"));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
@@ -333,7 +339,7 @@ public class UserControllerTests
             Role = UserRoleEnum.User,
             Password = "pw"
         };
-        _context!.Users.Add(userToDelete);
+        _context.Users.Add(userToDelete);
         await _context.SaveChangesAsync();
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(token: _token, method: "delete");
@@ -349,7 +355,7 @@ public class UserControllerTests
             Assert.That(_context.Users.Count(), Is.EqualTo(2));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
