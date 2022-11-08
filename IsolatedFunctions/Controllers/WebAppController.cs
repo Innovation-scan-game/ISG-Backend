@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Azure.Storage.Blobs;
+using IsolatedFunctions.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -7,7 +8,6 @@ namespace IsolatedFunctions.Controllers;
 
 public class WebAppController
 {
-    // private readonly BlobServiceClient _blobServiceClient;
     private readonly BlobContainerClient _blobContainerClient;
 
     public WebAppController(BlobServiceClient blobServiceClient)
@@ -15,26 +15,18 @@ public class WebAppController
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("$web");
     }
 
+    [Function(nameof(WebApp))]
+    public async Task<HttpResponseData> WebApp([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "web/app")] HttpRequestData req)
+    {
+        BlobClient? blob = _blobContainerClient.GetBlobClient("app/index.html1");
+        if (await blob.ExistsAsync())
+        {
+            return await req.CreateFileResponse(blob);
+        }
+        return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Not found");
+    }
 
-    // [Function(nameof(CmsProxy))]
-    // public async Task<HttpResponseData> CmsProxy(
-    //     [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cms/{*path}")]
-    //     HttpRequestData req,
-    //     FunctionContext executionContext,
-    //     string path)
-    // {
-    //     var response = req.CreateResponse(HttpStatusCode.OK);
-    //
-    //     var blob = _blobContainerClient.GetBlobClient(path);
-    //     if (await blob.ExistsAsync())
-    //     {
-    //         response.Headers.Add("Content-Type", blob.GetPropertiesAsync().Result.Value.ContentType);
-    //         await response.WriteStringAsync((await blob.DownloadContentAsync()).Value.Content.ToString());
-    //     }
-    //
-    //     return response;
-    // }
-    //
+
     [Function(nameof(Prototype))]
     public async Task<HttpResponseData> Prototype([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
@@ -46,7 +38,8 @@ public class WebAppController
 
     [Function(nameof(Cms))]
     public async Task<HttpResponseData> Cms(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cmsold/{*route}")] HttpRequestData req, string route)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cmsold/{*route}")]
+        HttpRequestData req, string route)
     {
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteStringAsync(await File.ReadAllTextAsync("webapp/cms/index.html"));

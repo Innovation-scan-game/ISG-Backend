@@ -1,137 +1,125 @@
 ﻿using System.Net;
 using System.Security.Claims;
 using AutoMapper;
-using DAL.Data;
+using Domain.Models;
 using IsolatedFunctions.DTO.SignalDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
+using IsolatedFunctions.Outputs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.EntityFrameworkCore;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
 public class SignalHubController
 {
-    private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
 
-    public SignalHubController(InnovationGameDbContext context, IMapper mapper)
+    private IUserService UserService { get; }
+
+    public SignalHubController(IMapper mapper, IUserService userService)
     {
-        _context = context;
+        UserService = userService;
         _mapper = mapper;
     }
 
-    [Function("negotiate")]
-    public static async Task<HttpResponseData> Negotiate(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
+    [Function(nameof(Negotiate))]
+    public async Task<HttpResponseData> Negotiate(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "negotiate")]
         HttpRequestData req,
         FunctionContext executionContext,
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo, SignalRInvocationContext context)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
 
-        HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
-
-        await response.WriteAsJsonAsync(connectionInfo);
-
-        return response;
+        return await req.CreateSuccessResponse(connectionInfo);
     }
 
-    [Function("joinGrp")]
-    public async Task<MessageAndGroup> JoinGrp([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req,
+    [Function(nameof(JoinGroup))]
+    public async Task<MessageAndGroupResponse> JoinGroup(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "joinGrp")]
+        HttpRequestData req,
         FunctionContext executionContext,
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo)
     {
-        var principal = executionContext.GetUser();
-        if (principal == null)
+        ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null)
         {
-            return new MessageAndGroup {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
+            return new MessageAndGroupResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
-        var dbUser = _context.Users.Include(usr => usr.CurrentSession).FirstOrDefault(usr => usr.Name == principal!.Identity!.Name);
 
-        if (dbUser?.CurrentSession == null)
+        if (dbUser.CurrentSession == null)
         {
-            return new MessageAndGroup{UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User is not in a session")};
+            return new MessageAndGroupResponse
+                {UserResponse = req.CreateResponse(HttpStatusCode.OK)};
         }
 
-        JoinGroupDto? test = await req.ReadFromJsonAsync<JoinGroupDto>();
-        // var body = new StreamReader(req.Body).ReadToEnd();
-        // Console.WriteLine("JOIN GRP");
+        JoinGroupDto? joinGroupDto = await req.ReadFromJsonAsync<JoinGroupDto>();
 
         LobbyPlayerDto userDto = _mapper.Map<LobbyPlayerDto>(dbUser);
 
         SignalRMessageAction msg = new("newPlayer")
         {
-            GroupName = dbUser!.CurrentSession!.SessionCode,
+            GroupName = dbUser.CurrentSession!.SessionCode,
             Arguments = new object[] {userDto}
         };
 
         SignalRGroupAction grp = new(SignalRGroupActionType.Add)
         {
             GroupName = dbUser.CurrentSession.SessionCode,
-            ConnectionId = test!.ConnectionId
+            ConnectionId = joinGroupDto!.ConnectionId
         };
 
-        return new MessageAndGroup {MessageAction = msg, GroupAction = grp, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
+        return new MessageAndGroupResponse {MessageAction = msg, GroupAction = grp, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
 
-    // update readiness
-
-    // answer submitted?
-
-    [Function("onconnected")]
-    public MessageAndGroup OnConnected(
-        [SignalRTrigger(hubName: "Hub", category: "connections", @event: "connected")]
+    /// <summary>
+    /// Remove disconnected players from the group and inform the other players.
+    /// </summary>
+    [Function(nameof(OnDisconnected))]
+    public MessageAndGroupResponse OnDisconnected(
+        [SignalRTrigger(hubName: "Hub", category: "connections", @event: "disconnected")]
         SignalRInvocationContext context)
     {
-        // var t = context.Headers;
-        // string token = context.Query["access_token"].ToString();
+        SignalRGroupAction groupAction = new SignalRGroupAction(SignalRGroupActionType.RemoveAll)
+        {
+            ConnectionId = context.ConnectionId,
+        };
 
-        // var headers = context.Headers;
-
-        // Console.WriteLine("ONCON");
-        // ClaimsPrincipal user = await TokenService.GetByValue(token);
-
-
-        // var test = _context.Users.ToList();
-        var message = new SignalRMessageAction("newConnection")
+        SignalRMessageAction messageAction = new SignalRMessageAction("playerLeft")
         {
             ConnectionId = context.ConnectionId,
             Arguments = new object[] {context.ConnectionId}
         };
-        // var grp = new SignalRGroupAction(SignalRGroupActionType.Add)
-        // {
-        //     GroupName = "test",
-        //     ConnectionId = context.ConnectionId
-        // };
-        return new MessageAndGroup {MessageAction = message};
+
+        return new MessageAndGroupResponse {GroupAction = groupAction, MessageAction = messageAction};
     }
 
 
-    public class MessageAndGroup
-    {
-        [SignalROutput(HubName = "Hub")] public SignalRGroupAction? GroupAction { get; set; }
-        [SignalROutput(HubName = "Hub")] public SignalRMessageAction? MessageAction { get; set; }
-        public HttpResponseData? UserResponse { get; set; }
-    }
-
-
-    [Function("SendToGroup")]
+    /// <summary>
+    /// Send the client connection id to the client when the connection is first established.
+    /// </summary>
     [SignalROutput(HubName = "Hub")]
-    public SignalRMessageAction SendToGroup(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
-        HttpRequestData req,
-        FunctionContext executionContext)
+    [Function(nameof(OnConnected))]
+    public SignalRMessageAction OnConnected(
+        [SignalRTrigger(hubName: "Hub", category: "connections", @event: "connected")]
+        SignalRInvocationContext context)
     {
-        return new SignalRMessageAction("newMessage")
+        return new SignalRMessageAction("newConnection")
         {
-            GroupName = "test",
-            Arguments = new object[] {"message to grp"}
+            ConnectionId = context.ConnectionId,
+            Arguments = new object[] {context.ConnectionId}
         };
     }
 }
