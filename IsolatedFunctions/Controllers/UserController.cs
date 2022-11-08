@@ -144,18 +144,14 @@ public class UserController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
-        User? user = await UserService.GetUserByName(principal.Identity!.Name!);
-
+        User? user = await UserService.GetUserByName(principal?.Identity?.Name!);
         if (user is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
         }
 
-
-        var body = await MultipartFormDataParser.ParseAsync(req.Body);
-
+        MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
         FilePart? file = body.Files.First();
-
         if (file == null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No file was uploaded.");
@@ -167,7 +163,7 @@ public class UserController
         if (!allowedContent.Contains(file.ContentType))
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest,
-                $"Invalid image file format: {file.ContentType}. Only PNG and JPEG are allowed.");
+                $"Invalid image file format: {file.ContentType}. Only PNGs and JPEGs are allowed.");
         }
 
         string ext = file.ContentType is "image/png" ? ".png" : ".jpg";
@@ -274,7 +270,7 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
         }
 
-        if (loggedInUser!.Role != UserRoleEnum.Admin && user.Id != loggedInUser.Id)
+        if (loggedInUser.Role != UserRoleEnum.Admin && user.Id != loggedInUser.Id)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to delete other users.");
         }

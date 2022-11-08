@@ -2,9 +2,8 @@
 
 namespace IsolatedFunctions.DTO;
 
-//TODO: Remove
 public class LoginResponseDto
 {
-    public UserDto User { get; set; }
+    public UserDto User { get; set; } = null!;
     public string AuthToken { get; set; } = "";
 }

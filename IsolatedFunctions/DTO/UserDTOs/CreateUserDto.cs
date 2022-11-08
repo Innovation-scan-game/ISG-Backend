@@ -10,9 +10,7 @@ namespace IsolatedFunctions.DTO.UserDTOs;
 public class CreateUserDto
 {
     [JsonRequired] public string Username { get; set; } = "";
-
     [JsonRequired] public string Password { get; set; } = "";
-
     [JsonRequired] public string Email { get; set; } = "";
 }
 
@@ -20,12 +18,12 @@ public class CreateUserDtoExample : OpenApiExample<CreateUserDto>
 {
     public override IOpenApiExample<CreateUserDto> Build(NamingStrategy? namingStrategy = null)
     {
-        Examples.Add(OpenApiExampleResolver.Resolve("Erwin",
+        Examples.Add(OpenApiExampleResolver.Resolve("Joe",
             new CreateUserDto
             {
-                Username = "Bob",
-                Password = "secret123",
-                Email = "bob@mail.com"
+                Username = "Joe",
+                Password = "secretPassw0rd",
+                Email = "joe@mail.com"
             },
             namingStrategy));
 

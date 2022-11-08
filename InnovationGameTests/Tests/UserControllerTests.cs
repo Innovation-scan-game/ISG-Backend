@@ -69,7 +69,7 @@ public class UserControllerTests
 
         _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
 
-        var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
+        var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
         _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);

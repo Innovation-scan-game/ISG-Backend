@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Azure.Storage.Blobs;
 using IsolatedFunctions.DTO;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -14,6 +15,7 @@ public static class HttpRequestDataExtension
         {
             message = statusCode.ToString();
         }
+
         response.StatusCode = statusCode;
         await response.WriteAsJsonAsync(new ErrorDto {Message = message, Code = (int) statusCode}, statusCode);
         return response;
@@ -21,12 +23,20 @@ public static class HttpRequestDataExtension
 
     public static async Task<HttpResponseData> CreateSuccessResponse<T>(this HttpRequestData request, T result)
     {
-        var response = request.CreateResponse(HttpStatusCode.OK);
+        HttpResponseData response = request.CreateResponse(HttpStatusCode.OK);
         if (result is not null)
         {
             await response.WriteAsJsonAsync<T>(result);
         }
 
+        return response;
+    }
+
+    public static async Task<HttpResponseData> CreateFileResponse(this HttpRequestData request, BlobClient client)
+    {
+        HttpResponseData response = request.CreateResponse(HttpStatusCode.OK);
+        response.Headers.Add("Content-Type", client.GetPropertiesAsync().Result.Value.ContentType);
+        await response.WriteStringAsync((await client.DownloadContentAsync()).Value.Content.ToString().Replace("\r\n", ""));
         return response;
     }
 }

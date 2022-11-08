@@ -54,9 +54,9 @@ public class UserService : IUserService
 
     public async Task DeleteUser(Guid id)
     {
-        var user = _context.Users.FirstOrDefault(u => u.Id == id);
+        User? user = _context.Users.FirstOrDefault(u => u.Id == id);
 
-        if (user != null)
+        if (user is not null)
         {
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();

@@ -2,7 +2,6 @@
 using AutoMapper;
 using Domain.Models;
 using IsolatedFunctions.DTO;
-using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -57,11 +56,8 @@ public class LoginController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid password!");
         }
 
-        UserDto userDto = _mapper.Map<UserDto>(dbUser);
-
         Logger.LogInformation("User {DbUserName} logged in", dbUser.Name);
         LoginResult result = await TokenService.CreateToken(dbUser);
-
 
         return await req.CreateSuccessResponse(result);
     }

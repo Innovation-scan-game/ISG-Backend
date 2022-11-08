@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32901.215
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FunctionsApp", "FunctionsApp\FunctionsApp.csproj", "{420729A4-3653-4E97-915B-350FDBF7729E}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DAL", "DAL\DAL.csproj", "{FDC1A1E8-473E-46F6-B421-7FC6FE674802}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{9F515E2E-1AF2-4182-97E5-35B8D77B54D6}"
@@ -21,10 +19,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{420729A4-3653-4E97-915B-350FDBF7729E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{420729A4-3653-4E97-915B-350FDBF7729E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{420729A4-3653-4E97-915B-350FDBF7729E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{420729A4-3653-4E97-915B-350FDBF7729E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FDC1A1E8-473E-46F6-B421-7FC6FE674802}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FDC1A1E8-473E-46F6-B421-7FC6FE674802}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDC1A1E8-473E-46F6-B421-7FC6FE674802}.Release|Any CPU.ActiveCfg = Release|Any CPU

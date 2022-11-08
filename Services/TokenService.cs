@@ -103,7 +103,7 @@ public class TokenService : ITokenService
     public TokenService(IConfiguration configuration, ILogger<TokenService> logger)
     {
         _configuration = configuration;
-        this.Logger = logger;
+        Logger = logger;
 
         Issuer = /*Configuration.GetClassValueChecked("JWT:Issuer", */"DebugIssuer"; //, Logger);
         Audience = /*Configuration.GetClassValueChecked("JWT:Audience", */"DebugAudience"; //, Logger);

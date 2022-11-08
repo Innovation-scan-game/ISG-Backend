@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Azure.Storage.Blobs;
+using IsolatedFunctions.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 
@@ -17,19 +18,14 @@ public class WebAppController
     [Function(nameof(WebApp))]
     public async Task<HttpResponseData> WebApp([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "web/app")] HttpRequestData req)
     {
-        var blob = _blobContainerClient.GetBlobClient("app/index.html");
-        var response = req.CreateResponse(HttpStatusCode.OK);
+        BlobClient? blob = _blobContainerClient.GetBlobClient("app/index.html1");
         if (await blob.ExistsAsync())
         {
-            var props = blob.GetPropertiesAsync().Result.Value;
-            var ct = blob.GetPropertiesAsync().Result.Value.ContentType;
-
-            response.Headers.Add("Content-Type", blob.GetPropertiesAsync().Result.Value.ContentType);
-            await response.WriteStringAsync((await blob.DownloadContentAsync()).Value.Content.ToString());
+            return await req.CreateFileResponse(blob);
         }
-
-        return response;
+        return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Not found");
     }
+
 
     [Function(nameof(Prototype))]
     public async Task<HttpResponseData> Prototype([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)

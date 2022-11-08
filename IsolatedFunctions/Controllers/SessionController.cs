@@ -52,12 +52,7 @@ public class SessionController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
-        if (user is null)
-        {
-            return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
-        }
-
-        User? dbUser = await UserService.GetUserByName(user.Identity!.Name!);
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
         if (dbUser is null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
@@ -112,12 +107,10 @@ public class SessionController
     {
         ClaimsPrincipal? user = executionContext.GetUser();
         User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
-
         if (dbUser is null)
         {
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
-
 
         UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
@@ -430,7 +423,7 @@ public class SessionController
         StartGameDto responseDto = new()
         {
             Cards = cards,
-            RoundDuration = options.RoundDuration,
+            RoundDuration = options.RoundDuration
         };
 
 

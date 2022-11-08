@@ -50,7 +50,7 @@ public class CardControllerTests
         _cardController = new CardController(mapper, new CardService(_context), new UserService(_context));
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
-        TokenService tokenService = new TokenService(null, new Mock<ILogger<TokenService>>().Object);
+        TokenService tokenService = new TokenService(null!, new Mock<ILogger<TokenService>>().Object);
         _middleware = new JwtMiddleware(tokenService, new Mock<ILogger<JwtMiddleware>>().Object);
     }
 

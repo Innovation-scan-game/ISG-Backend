@@ -156,7 +156,7 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid input!");
         }
 
-        Card? dbCard = await CardService.GetCardById(Guid.Parse(editCardDto!.Id));
+        Card? dbCard = await CardService.GetCardById(Guid.Parse(editCardDto.Id));
 
         if (dbCard is null)
         {

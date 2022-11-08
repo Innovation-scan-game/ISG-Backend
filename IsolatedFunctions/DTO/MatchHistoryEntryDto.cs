@@ -6,7 +6,7 @@ public class MatchHistoryEntryDto
 {
     public int Id { get; set; }
     public DateTime Date { get; set; }
-    public CardDto Card { get; set; }
+    public CardDto Card { get; set; } = null!;
     public string TextResponse { get; set; } = "";
     public string TextEmoji { get; set; } = "";
 }

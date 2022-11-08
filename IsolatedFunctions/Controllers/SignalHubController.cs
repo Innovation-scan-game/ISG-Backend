@@ -24,22 +24,22 @@ public class SignalHubController
         _mapper = mapper;
     }
 
-    [Function("negotiate")]
-    public static async Task<HttpResponseData> Negotiate(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
+    [Function(nameof(Negotiate))]
+    public async Task<HttpResponseData> Negotiate(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "negotiate")]
         HttpRequestData req,
         FunctionContext executionContext,
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo, SignalRInvocationContext context)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
-        // TODO: Validate user. Either here or in the middleware.
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
 
-        HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
-
-        await response.WriteAsJsonAsync(connectionInfo);
-
-        return response;
+        return await req.CreateSuccessResponse(connectionInfo);
     }
 
     [Function(nameof(JoinGroup))]
@@ -92,12 +92,12 @@ public class SignalHubController
         [SignalRTrigger(hubName: "Hub", category: "connections", @event: "disconnected")]
         SignalRInvocationContext context)
     {
-        var groupAction = new SignalRGroupAction(SignalRGroupActionType.RemoveAll)
+        SignalRGroupAction groupAction = new SignalRGroupAction(SignalRGroupActionType.RemoveAll)
         {
             ConnectionId = context.ConnectionId,
         };
 
-        var messageAction = new SignalRMessageAction("playerLeft")
+        SignalRMessageAction messageAction = new SignalRMessageAction("playerLeft")
         {
             ConnectionId = context.ConnectionId,
             Arguments = new object[] {context.ConnectionId}

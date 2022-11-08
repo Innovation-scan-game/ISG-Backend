@@ -3,7 +3,6 @@ using DAL.Data;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +35,12 @@ public static class Program
             .ConfigureFunctionsWorkerDefaults(builder =>
             {
                 builder.UseMiddleware<JwtMiddleware>();
+
+                builder.UseWhen<WssMiddleware>(context =>
+                {
+                    return context.FunctionDefinition.Name == "negotiate";
+                });
+
 
                 builder.Services.AddAutoMapper(typeof(InnovationGameMappingProfile));
                 builder.Services.AddSingleton<ITokenService, TokenService>();

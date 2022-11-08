@@ -61,7 +61,7 @@ public class LoginControllerTests
         var loginLogger = new Mock<ILogger<LoginController>>();
 
 
-        var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
+        var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
     }
