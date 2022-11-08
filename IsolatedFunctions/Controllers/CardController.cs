@@ -46,7 +46,7 @@ public class CardController
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
         Description = "The Requested Card")]
     public async Task<HttpResponseData> GetCardById(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards/{id}")]
         HttpRequestData req, string id)
     {
         Card? card = await CardService.GetCardById(Guid.Parse(id));
@@ -130,7 +130,7 @@ public class CardController
     }
 
     [Function(nameof(EditCard))]
-    [OpenApiOperation(operationId: "EditCard", tags: new[] {"cards"}, Summary = "Edits a card by ID",
+    [OpenApiOperation(operationId: "EditCard", tags: new[] {"cards"}, Summary = "Edit an existing card",
         Description = "Edits a single card")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
         Description = "The edited card")]

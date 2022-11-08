@@ -106,12 +106,12 @@ public class UserController
 
     [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
-    [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Creates a new user",
+    [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Create a new user",
         Description = "Creates a new user based on the data given")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(UserDto), Summary = "The created user",
         Description = "The created user")]
     public async Task<HttpResponseData> CreateUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/register")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user")]
         HttpRequestData req, FunctionContext executionContext)
 
     {
@@ -182,12 +182,12 @@ public class UserController
 
 
     [Function(nameof(UpdateUser))]
-    [OpenApiOperation(operationId: "UpdateUser", tags: new[] {"user"}, Summary = "updates a user",
+    [OpenApiOperation(operationId: "UpdateUser", tags: new[] {"user"}, Summary = "Update an existing user",
         Description = "Updates a user ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "the updated user")]
     public async Task<HttpResponseData> UpdateUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user/edit")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user")]
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
@@ -244,7 +244,7 @@ public class UserController
     }
 
     [Function(nameof(DeleteUser))]
-    [OpenApiOperation(operationId: "DeleteUser", tags: new[] {"user"}, Summary = "deletes a user",
+    [OpenApiOperation(operationId: "DeleteUser", tags: new[] {"user"}, Summary = "Delete the given user",
         Description = "deletes a user by ID")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The deleted user")]
