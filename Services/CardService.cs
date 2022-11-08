@@ -1,9 +1,9 @@
 ﻿using DAL.Data;
 using Domain.Models;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Services.Interfaces;
 
-namespace IsolatedFunctions.Services;
+namespace Services;
 
 public class CardService : ICardService
 {

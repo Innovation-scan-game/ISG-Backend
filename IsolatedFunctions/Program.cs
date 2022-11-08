@@ -2,14 +2,14 @@ using System.Text.Json;
 using DAL.Data;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Services;
+using Services.Interfaces;
 
 namespace IsolatedFunctions;
 

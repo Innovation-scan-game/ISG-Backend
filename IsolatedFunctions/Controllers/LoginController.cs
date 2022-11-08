@@ -4,12 +4,12 @@ using Domain.Models;
 using IsolatedFunctions.DTO;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
-using IsolatedFunctions.Services;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
+using Services;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
@@ -60,7 +60,7 @@ public class LoginController
         UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
         Logger.LogInformation("User {DbUserName} logged in", dbUser.Name);
-        LoginResult result = await TokenService.CreateToken(userDto);
+        LoginResult result = await TokenService.CreateToken(dbUser);
 
 
         return await req.CreateSuccessResponse(result);

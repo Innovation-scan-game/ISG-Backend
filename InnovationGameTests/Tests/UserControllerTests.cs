@@ -7,28 +7,26 @@ using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests.Tests;
 
 public class UserControllerTests
 {
-    private InnovationGameDbContext? _context;
-
-    private LoginController? _loginController;
-    private UserController? _userController;
-
-    private User? _admin;
-    private User? _user;
+    private InnovationGameDbContext _context = null!;
+    private LoginController _loginController = null!;
+    private UserController _userController = null!;
+    private User _admin = null!;
+    private User _user = null!;
 
     private string? _token;
-    private JwtMiddleware? _middleware;
+    private JwtMiddleware _middleware = null!;
 
     [SetUp]
     public async Task Setup()
@@ -95,7 +93,7 @@ public class UserControllerTests
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
         // Call the controller endpoint
-        HttpResponseData response = await _userController.GetAllUsers(req);
+        HttpResponseData response = await _userController.GetAllUsers(req, req.FunctionContext);
         // Assert that the response is OK and that the users are retrieved
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(_context.Users.Count(), Is.EqualTo(2));

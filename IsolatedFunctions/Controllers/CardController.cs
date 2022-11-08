@@ -1,13 +1,14 @@
 ﻿using System.Net;
+using System.Security.Claims;
 using AutoMapper;
 using Domain.Enums;
 using Domain.Models;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.Extensions;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
@@ -16,12 +17,15 @@ public class CardController
     private readonly IMapper _mapper;
 
     private ICardService CardService { get; }
+    private IUserService UserService { get; }
 
-    public CardController(IMapper mapper, ICardService cardService)
+    public CardController(IMapper mapper, ICardService cardService, IUserService userService)
     {
+        UserService = userService;
         CardService = cardService;
         _mapper = mapper;
     }
+
     /// <summary>
     ///     Gets a list of all the cards that are currently in the game.
     /// </summary>
@@ -33,7 +37,7 @@ public class CardController
     public async Task<HttpResponseData> GetAllCards([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards")] HttpRequestData req)
     {
         List<Card> cards = await CardService.GetAllCards();
-        return await req.CreateSuccessResponse(_mapper.Map<CardDto>(cards));
+        return await req.CreateSuccessResponse(cards.Select(c => _mapper.Map<CardDto>(c)).ToList());
     }
 
     [Function(nameof(GetCardById))]
@@ -45,7 +49,6 @@ public class CardController
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getCard/{id}")]
         HttpRequestData req, string id)
     {
-
         Card? card = await CardService.GetCardById(Guid.Parse(id));
 
         if (card == null)
@@ -66,29 +69,27 @@ public class CardController
         HttpRequestData req,
         FunctionContext executionContext, string id)
     {
-        
-
-        if (!executionContext.IsAdmin())
+        ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
         if (!Guid.TryParse(id, out Guid cardId))
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Invalid card id!");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid card id!");
         }
 
         Card? card = await CardService.GetCardById(cardId);
         if (card == null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.NotFound,"Card not found!");
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found!");
         }
 
         await CardService.RemoveCard(card);
-        
+
         return await req.CreateSuccessResponse(HttpStatusCode.OK);
-        //await response.WriteStringAsync($"Card '{card.Name}' deleted");
-        
     }
 
     [Function(nameof(CreateCard))]
@@ -97,15 +98,17 @@ public class CardController
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
         Description = "The created card")]
     public async Task<HttpResponseData> CreateCard(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "cards/create")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "cards")]
         HttpRequestData req, FunctionContext executionContext)
 
     {
-        if (!executionContext.IsAdmin())
+        ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
-        
+
         if (req.Body.Length == 0)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest);
@@ -131,39 +134,40 @@ public class CardController
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CardDto),
         Description = "The edited card")]
     public async Task<HttpResponseData> EditCard(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "cards/edit")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "cards")]
         HttpRequestData req, FunctionContext executionContext)
 
     {
-        if (!executionContext.IsAdmin())
+        ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to edit cards!");
         }
 
         if (req.Body.Length == 0)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"No input!");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No input!");
         }
 
         EditCardDto? editCardDto = await req.ReadFromJsonAsync<EditCardDto>();
         if (editCardDto is null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Invalid input!");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid input!");
         }
 
         Card? dbCard = await CardService.GetCardById(Guid.Parse(editCardDto!.Id));
 
         if (dbCard is null)
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,"Card with this ID does not exist!");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Card with this ID does not exist!");
         }
 
         dbCard.Name = editCardDto.Name;
         dbCard.Body = editCardDto.Body;
         dbCard.Type = (CardTypeEnum) editCardDto.Type;
-        
+
         await CardService.UpdateCard(dbCard);
         return await req.CreateSuccessResponse(HttpStatusCode.OK);
-        
     }
 }

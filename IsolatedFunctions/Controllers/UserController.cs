@@ -3,20 +3,19 @@ using System.Security.Claims;
 using AutoMapper;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
 using HttpMultipartParser;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Helper;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
@@ -49,19 +48,19 @@ public class UserController
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
     }
 
-    [Function(nameof(UploadProfilePicture))]
-    [OpenApiOperation(operationId: "PostPicture", tags: new[] {"user"}, Summary = "Upload Picture",
-        Description = "Uploads a user's profile picture ")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
-        Description = "The uploaded picture")]
-    public async Task<HttpResponseData> UploadProfilePicture(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")]
-        HttpRequestData req,
-        FunctionContext executionContext)
-    {
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        return response;
-    }
+    // [Function(nameof(UploadProfilePicture))]
+    // [OpenApiOperation(operationId: "PostPicture", tags: new[] {"user"}, Summary = "Upload Picture",
+    //     Description = "Uploads a user's profile picture ")]
+    // [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
+    //     Description = "The uploaded picture")]
+    // public async Task<HttpResponseData> UploadProfilePicture(
+    //     [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")]
+    //     HttpRequestData req,
+    //     FunctionContext executionContext)
+    // {
+    //     var response = req.CreateResponse(HttpStatusCode.OK);
+    //     return response;
+    // }
 
     [Function(nameof(GetAllUsers))]
     [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
@@ -69,12 +68,19 @@ public class UserController
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "List of all users")]
     public async Task<HttpResponseData> GetAllUsers(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users/all")]
-        HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")]
+        HttpRequestData req, FunctionContext executionContext)
     {
-        List<User> users = await UserService.GetAllUsers();
-        var userDtos = _mapper.Map<UserDto[]>(users);
+        ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
 
+        List<User> users = await UserService.GetAllUsers();
+
+        UserDto[]? userDtos = _mapper.Map<UserDto[]>(users);
         return await req.CreateSuccessResponse(userDtos);
     }
 
@@ -125,8 +131,6 @@ public class UserController
         User user = _mapper.Map<User>(createUserDto);
         await UserService.AddUser(user);
 
-        // _context.Users.Add(user);
-        // await _context.SaveChangesAsync();
         return await req.CreateSuccessResponse(createUserDto);
     }
 
@@ -140,13 +144,13 @@ public class UserController
         HttpRequestData req, FunctionContext executionContext)
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
+        User? user = await UserService.GetUserByName(principal.Identity!.Name!);
 
-        if (principal == null)
+        if (user is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
         }
 
-        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         var body = await MultipartFormDataParser.ParseAsync(req.Body);
 
@@ -158,33 +162,26 @@ public class UserController
         }
 
 
-        if (file.ContentType != "image/png" && file.ContentType != "image/jpeg")
+        string[] allowedContent = {"image/png", "image/jpeg"};
+
+        if (!allowedContent.Contains(file.ContentType))
         {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, $"Invalid image file format: {file.ContentType}");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,
+                $"Invalid image file format: {file.ContentType}. Only PNG and JPEG are allowed.");
         }
 
-        string ext = file.ContentType == "image/png" ? ".png" : ".jpg";
+        string ext = file.ContentType is "image/png" ? ".png" : ".jpg";
 
         Stream s = Helpers.ResizeImage(file);
-        var md5 = Helpers.GenerateMd5Hash(s);
+        string md5 = Helpers.GenerateMd5Hash(s);
 
         BlobClient blob = _blobContainerClient.GetBlobClient(md5 + ext);
         s.Position = 0;
-
         await blob.UploadAsync(s, new BlobHttpHeaders {ContentType = file.ContentType});
 
-        loggedInUser!.Picture = blob.Uri.ToString();
-
-        await UserService.UpdateUser(loggedInUser);
-
-        Console.WriteLine(file.ContentType);
-
-        Console.WriteLine("upload");
-
-
-        HttpResponseData response = req.CreateResponse();
-        response.StatusCode = HttpStatusCode.OK;
-        return response;
+        user.Picture = blob.Uri.ToString();
+        await UserService.UpdateUser(user);
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 
 
@@ -262,13 +259,13 @@ public class UserController
 
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
+        User? loggedInUser = await UserService.GetUserByName(principal?.Identity?.Name!);
 
-        if (principal == null)
+        if (loggedInUser is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to delete users.");
         }
 
-        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         User? user = await UserService.GetUser(Guid.Parse(id));
 
@@ -282,10 +279,9 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to delete other users.");
         }
 
+        _logger.LogInformation("Deleting user {UserName}", user.Name);
 
         await UserService.DeleteUser(user.Id);
-        // _context.Users.Remove(user);
-        // await _context.SaveChangesAsync();
         return req.CreateResponse(HttpStatusCode.OK);
     }
 }

@@ -7,12 +7,12 @@ using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests.Tests;
 
@@ -47,7 +47,7 @@ public class CardControllerTests
         await _context.SaveChangesAsync();
 
         IMapper mapper = MockHelpers.CreateMapper();
-        _cardController = new CardController(mapper, new CardService(_context));
+        _cardController = new CardController(mapper, new CardService(_context), new UserService(_context));
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
         TokenService tokenService = new TokenService(null, new Mock<ILogger<TokenService>>().Object);
@@ -67,13 +67,13 @@ public class CardControllerTests
     public async Task TestCreateCard()
     {
         // Setup a card to create
-         CreateCardDto createCardDto = new CreateCardDto
+        CreateCardDto createCardDto = new CreateCardDto
         {
             Name = "TestCard2",
             Body = "TestBody2",
             Type = 2,
         };
-        
+
         string json = JsonConvert.SerializeObject(createCardDto);
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
@@ -164,7 +164,7 @@ public class CardControllerTests
         Assert.That(result.CardName, Is.EqualTo(newCard.Name));
         Assert.That(_context.Cards.Count(), Is.EqualTo(2));
     }
-    
+
     [Test]
     public async Task TestGetUserByIDUsingWrongID()
     {

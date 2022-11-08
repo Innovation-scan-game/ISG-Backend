@@ -39,13 +39,18 @@
         <None Update="webapp\cms\index.html">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <None Update="appsettings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\DAL\DAL.csproj" />
+        <ProjectReference Include="..\Services\Services.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Services" />
       <Folder Include="webapp\cms" />
     </ItemGroup>
 </Project>

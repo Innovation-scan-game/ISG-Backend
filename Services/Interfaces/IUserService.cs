@@ -1,6 +1,6 @@
 ﻿using Domain.Models;
 
-namespace IsolatedFunctions.Services.Interfaces;
+namespace Services.Interfaces;
 
 public interface IUserService
 {

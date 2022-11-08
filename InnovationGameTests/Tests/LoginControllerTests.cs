@@ -3,17 +3,13 @@ using Azure.Storage.Blobs;
 using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
-using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
-using IsolatedFunctions.DTO.UserDTOs;
-using IsolatedFunctions.Security;
-using IsolatedFunctions.Services;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using Services;
 
 namespace InnovationGameTests.Tests;
 
@@ -21,8 +17,7 @@ public class LoginControllerTests
 {
     private InnovationGameDbContext _context = null!;
 
-    private LoginController? _loginController;
-    private UserController? _userController;
+    private LoginController _loginController = null!;
 
     private User? _admin;
     private User? _user;
@@ -65,7 +60,6 @@ public class LoginControllerTests
 
         var loginLogger = new Mock<ILogger<LoginController>>();
 
-        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
 
         var tokenService = new TokenService(null, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));

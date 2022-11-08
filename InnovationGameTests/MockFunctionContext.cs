@@ -24,14 +24,6 @@ public class MockFunctionContext : FunctionContext, IDisposable
     {
         FunctionDefinition = functionDefinition;
         _invocation = invocation;
-
-
-        //Features.Set<IFunctionBindingsFeature>(new TestFunctionBindingsFeature
-        //{
-        //    OutputBindingsInfo = new DefaultOutputBindingsInfoProvider().GetBindingsInfo(FunctionDefinition)
-        //});
-
-        // BindingContext = new DefaultBindingContext(this);
     }
 
     public bool IsDisposed { get; private set; }

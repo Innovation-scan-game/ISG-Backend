@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Domain.Models;
-using IsolatedFunctions.DTO.UserDTOs;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Resolvers;
@@ -12,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace IsolatedFunctions.Services;
+namespace Services;
 
 [OpenApiExample(typeof(LoginRequestExample))]
 public class LoginRequest
@@ -58,9 +57,9 @@ public class LoginResult
     [JsonRequired]
     public int ExpiresIn => (int) (Token.ValidTo - DateTime.UtcNow).TotalSeconds;
 
-    public UserDto User { get; }
+    public User User { get; }
 
-    public LoginResult(JwtSecurityToken token, UserDto user)
+    public LoginResult(JwtSecurityToken token, User user)
     {
         Token = token;
         User = user;
@@ -69,7 +68,7 @@ public class LoginResult
 
 public interface ITokenService
 {
-    Task<LoginResult> CreateToken(UserDto user);
+    Task<LoginResult> CreateToken(User user);
     Task<ClaimsPrincipal> GetByValue(string value);
 }
 
@@ -118,12 +117,12 @@ public class TokenService : ITokenService
         ValidationParameters = new TokenIdentityValidationParameters(Issuer, Audience, securityKey);
     }
 
-    public async Task<LoginResult> CreateToken(UserDto user)
+    public async Task<LoginResult> CreateToken(User user)
     {
         JwtSecurityToken token = await CreateToken(new Claim[]
         {
             new(ClaimTypes.Role, user.Role.ToString()),
-            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Name, user.Name),
         });
 
         return new LoginResult(token, user);

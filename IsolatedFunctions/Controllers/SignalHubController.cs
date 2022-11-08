@@ -1,21 +1,19 @@
 ﻿using System.Net;
 using System.Security.Claims;
 using AutoMapper;
-using DAL.Data;
+using Domain.Models;
 using IsolatedFunctions.DTO.SignalDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.Extensions;
 using IsolatedFunctions.Outputs;
-using IsolatedFunctions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.EntityFrameworkCore;
+using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
 public class SignalHubController
 {
-    // private readonly InnovationGameDbContext _context;
     private readonly IMapper _mapper;
 
     private IUserService UserService { get; }
@@ -23,7 +21,6 @@ public class SignalHubController
     public SignalHubController(IMapper mapper, IUserService userService)
     {
         UserService = userService;
-        // _context = context;
         _mapper = mapper;
     }
 
@@ -45,26 +42,25 @@ public class SignalHubController
         return response;
     }
 
-    [Function(nameof(JoinSignalRGroup))]
-    public async Task<MessageAndGroupResponse> JoinSignalRGroup(
+    [Function(nameof(JoinGroup))]
+    public async Task<MessageAndGroupResponse> JoinGroup(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "joinGrp")]
         HttpRequestData req,
         FunctionContext executionContext,
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo)
     {
-        var principal = executionContext.GetUser();
-        if (principal == null)
+        ClaimsPrincipal? principal = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        if (dbUser is null)
         {
             return new MessageAndGroupResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
-        var dbUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
-        if (dbUser?.CurrentSession == null)
+        if (dbUser.CurrentSession == null)
         {
             return new MessageAndGroupResponse
-                // {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User is not in a session")};
                 {UserResponse = req.CreateResponse(HttpStatusCode.OK)};
         }
 
@@ -88,6 +84,9 @@ public class SignalHubController
     }
 
 
+    /// <summary>
+    /// Remove disconnected players from the group and inform the other players.
+    /// </summary>
     [Function(nameof(OnDisconnected))]
     public MessageAndGroupResponse OnDisconnected(
         [SignalRTrigger(hubName: "Hub", category: "connections", @event: "disconnected")]
@@ -108,6 +107,9 @@ public class SignalHubController
     }
 
 
+    /// <summary>
+    /// Send the client connection id to the client when the connection is first established.
+    /// </summary>
     [SignalROutput(HubName = "Hub")]
     [Function(nameof(OnConnected))]
     public SignalRMessageAction OnConnected(
