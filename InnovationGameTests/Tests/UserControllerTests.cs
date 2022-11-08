@@ -64,7 +64,6 @@ public class UserControllerTests
         var blob = new Mock<BlobServiceClient>();
 
         var loginLogger = new Mock<ILogger<LoginController>>();
-
         var jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
         _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
@@ -91,12 +90,21 @@ public class UserControllerTests
     public async Task TestGetAllUsers()
     {
         // Forge a request
-        HttpRequestData req = MockHelpers.CreateHttpRequestData();
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(token: _token);
         // Call the controller endpoint
-        HttpResponseData response = await _userController.GetAllUsers(req, req.FunctionContext);
         // Assert that the response is OK and that the users are retrieved
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(_context.Users.Count(), Is.EqualTo(2));
+
+
+        async Task Next(FunctionContext context)
+        {
+            // Call the controller endpoint
+            HttpResponseData response = await _userController.GetAllUsers(req, req.FunctionContext);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(_context.Users.Count(), Is.EqualTo(2));
+        }
+
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
 
@@ -207,10 +215,10 @@ public class UserControllerTests
             var res = await _userController!.UpdateUser(req, req.FunctionContext);
             // Assert that the response is OK and that the testuser' email equals to the new email
             Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That((await _context!.Users.FindAsync(_admin.Id)).Email, Is.EqualTo("testnew@mail.com"));
+            Assert.That((await _context.Users.FindAsync(_admin.Id))?.Email, Is.EqualTo("testnew@mail.com"));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
@@ -331,7 +339,7 @@ public class UserControllerTests
             Role = UserRoleEnum.User,
             Password = "pw"
         };
-        _context!.Users.Add(userToDelete);
+        _context.Users.Add(userToDelete);
         await _context.SaveChangesAsync();
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(token: _token, method: "delete");
@@ -347,7 +355,7 @@ public class UserControllerTests
             Assert.That(_context.Users.Count(), Is.EqualTo(2));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]

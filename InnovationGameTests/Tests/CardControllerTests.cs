@@ -18,9 +18,9 @@ namespace InnovationGameTests.Tests;
 
 public class CardControllerTests
 {
-    private CardController _cardController;
-    private InnovationGameDbContext _context;
-    private JwtMiddleware _middleware;
+    private CardController _cardController = null!;
+    private InnovationGameDbContext _context = null!;
+    private JwtMiddleware _middleware = null!;
     private string? _token;
 
     [SetUp]
@@ -71,34 +71,48 @@ public class CardControllerTests
         {
             Name = "TestCard2",
             Body = "TestBody2",
-            Type = 2,
+            Type = 2
         };
 
         string json = JsonConvert.SerializeObject(createCardDto);
         // Forge a request
-        HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-        // Call the controller endpoint
-        HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json, _token);
 
-        // Assert that the card is created and that the new count equals to 2
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-        Assert.That(_context.Cards.Count(), Is.EqualTo(2));
+        var count = _context.Cards.Count();
+
+        async Task Next(FunctionContext context)
+        {
+            // Call the controller endpoint
+            HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+
+            // Assert that the card is created and that the new count equals to 2
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+            Assert.That(_context.Cards.Count(), Is.EqualTo(2));
+        }
+
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
     public async Task TestCreateCardProvidingInvalidCardData()
     {
         // Create a card with invalid content 
-        CreateCardDto createCardDto = null;
+        CreateCardDto createCardDto = null!;
 
         string json = JsonConvert.SerializeObject(createCardDto);
         // Forge a request
-        HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-        // Call the controller endpoint
-        HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json, _token);
 
-        // Assert that response is 400 BadRequest, because the data is invalid
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        async Task Next(FunctionContext context)
+        {
+            // Call the controller endpoint
+            HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+
+            // Assert that response is 400 BadRequest, because the data is invalid
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        }
+
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
@@ -109,17 +123,24 @@ public class CardControllerTests
         {
             Name = "CardName",
             Body = "TestBody2",
-            Type = 2,
+            Type = 2
         };
 
         string json = JsonConvert.SerializeObject(createCardDto);
         // Forge a request
-        HttpRequestData req = MockHelpers.CreateHttpRequestData(json);
-        // Call the controller endpoint
-        HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+        HttpRequestData req = MockHelpers.CreateHttpRequestData(json, _token);
 
-        // Assert that response is 400 BadRequest, because the card already exists
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        async Task Next(FunctionContext context)
+        {
+            // Call the controller endpoint
+            HttpResponseData response = await _cardController.CreateCard(req, req.FunctionContext);
+
+            // Assert that response is 400 BadRequest, because the card already exists
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        }
+
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]

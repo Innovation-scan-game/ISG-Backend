@@ -32,7 +32,7 @@ public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute
 
 public class UserController
 {
-    private readonly ILogger<LoginController> _logger;
+    private readonly ILogger<UserController> _logger;
     private readonly IMapper _mapper;
 
     private IUserService UserService { get; }
@@ -43,7 +43,7 @@ public class UserController
         BlobServiceClient blobServiceClient)
     {
         UserService = userService;
-        _logger = loggerFactory.CreateLogger<LoginController>();
+        _logger = loggerFactory.CreateLogger<UserController>();
         _mapper = mapper;
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
     }
@@ -275,7 +275,7 @@ public class UserController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to delete other users.");
         }
 
-        _logger.LogInformation("Deleting user {UserName}", user.Name);
+        // _logger.LogInformation("Deleting user {UserName}", user.Name);
 
         await UserService.DeleteUser(user.Id);
         return req.CreateResponse(HttpStatusCode.OK);

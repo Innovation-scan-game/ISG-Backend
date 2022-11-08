@@ -82,7 +82,7 @@ public class LoginControllerTests
         LoginRequest loginRequest = new LoginRequest
         {
             Username = _user.Name,
-            Password = _user.Password,
+            Password = "userPassword",
         };
         string json = JsonConvert.SerializeObject(loginRequest);
 

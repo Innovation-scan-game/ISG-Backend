@@ -125,7 +125,8 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Card with this name already exists!");
         }
 
-        return await req.CreateSuccessResponse(_mapper.Map<CardDto>(cardDto));
+        await CardService.AddCard(_mapper.Map<Card>(cardDto));
+        return req.CreateResponse(HttpStatusCode.Created);
     }
 
     [Function(nameof(EditCard))]
