@@ -2,6 +2,7 @@ using System.Text.Json;
 using DAL.Data;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
@@ -34,7 +35,11 @@ public static class Program
             })
             .ConfigureFunctionsWorkerDefaults(builder =>
             {
+                builder.AddApplicationInsights()
+                    .AddApplicationInsightsLogger();
+
                 builder.UseMiddleware<JwtMiddleware>();
+
 
                 builder.UseWhen<WssMiddleware>(context =>
                 {

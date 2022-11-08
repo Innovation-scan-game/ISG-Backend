@@ -20,9 +20,9 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   resource blobService 'blobServices' = {
     name: 'default'
     resource container 'containers' = {
-      name: 'container1'
+      name: '$web'
       properties: {
-        publicAccess: 'None'
+        publicAccess: 'Blob'
       }
     }
   }
@@ -52,7 +52,7 @@ resource isolatedFunction 'Microsoft.Web/sites@2022-03-01' = {
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet'
+          value: 'dotnet-isolated'
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
