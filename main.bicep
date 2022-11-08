@@ -45,6 +45,12 @@ resource isolatedFunction 'Microsoft.Web/sites@2022-03-01' = {
     serverFarmId: hostingPlan.id
     httpsOnly: true
     siteConfig: {
+      connectionStrings: [
+        {
+          name: 'SqlConnectionString'
+          value: 'Server=tcp:${sqlServerName}${sqlServerHostname},1433;Initial Catalog=innovationgame;Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+        }
+      ]
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -58,10 +64,7 @@ resource isolatedFunction 'Microsoft.Web/sites@2022-03-01' = {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
         }
-        {
-          name: 'SqlConnectionString'
-          value: 'Server=tcp:${sqlServerName}${sqlServerHostname},1433;Initial Catalog=innovationgame;Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
-        }
+
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};AccountKey=${listKeys(storageAccount.id, '2022-05-01').keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
@@ -71,6 +74,7 @@ resource isolatedFunction 'Microsoft.Web/sites@2022-03-01' = {
           value: 'innovationgame'
         }
       ]
+      
     }
   }
   resource config 'config' = {

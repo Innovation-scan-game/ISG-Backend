@@ -26,7 +26,7 @@ public class InnovationGameDbContext : DbContext
         {
             IConfigurationRoot configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
+                .AddJsonFile("local.settings.json")
                 .Build();
             var connectionString = configuration.GetConnectionString("SqlConnectionString");
             optionsBuilder.UseSqlServer(connectionString);

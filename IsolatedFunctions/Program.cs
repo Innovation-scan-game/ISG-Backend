@@ -4,6 +4,7 @@ using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,10 +42,7 @@ public static class Program
                 builder.UseMiddleware<JwtMiddleware>();
 
 
-                builder.UseWhen<WssMiddleware>(context =>
-                {
-                    return context.FunctionDefinition.Name == "negotiate";
-                });
+                builder.UseWhen<WssMiddleware>(context => { return context.FunctionDefinition.Name == "negotiate"; });
 
 
                 builder.Services.AddAutoMapper(typeof(InnovationGameMappingProfile));
@@ -53,8 +51,6 @@ public static class Program
 
                 builder.Services.AddOptions<JsonSerializerOptions>()
                     .Configure(options => options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
-
-                builder.Services.AddDbContext<InnovationGameDbContext>();
 
                 builder.Services.AddTransient<IUserService, UserService>();
                 builder.Services.AddTransient<ICardService, CardService>();
@@ -72,7 +68,11 @@ public static class Program
     {
         services
             .AddLogging()
+            .AddDbContext<InnovationGameDbContext>(options =>
+                options.UseSqlServer(configuration.GetConnectionString("SqlConnectionString")))
+
             .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetConnectionString("AzureStorage")); });
+
 
         // .AddSingleton()
         // .AddHttpLayer(configuration)
