@@ -18,7 +18,7 @@ public class WebAppController
     [Function(nameof(WebApp))]
     public async Task<HttpResponseData> WebApp([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "web/app")] HttpRequestData req)
     {
-        BlobClient? blob = _blobContainerClient.GetBlobClient("app/index.html1");
+        BlobClient? blob = _blobContainerClient.GetBlobClient("app/index.html");
         if (await blob.ExistsAsync())
         {
             return await req.CreateFileResponse(blob);

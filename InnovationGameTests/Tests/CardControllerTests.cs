@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using AutoMapper;
+using Azure.Storage.Blobs;
 using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
@@ -41,13 +42,15 @@ public class CardControllerTests
             Id = Guid.NewGuid(),
             Name = "CardName",
             Body = "CardBody",
-            Type = CardTypeEnum.OpenAnswer,
+            Type = CardTypeEnum.OpenAnswer
         };
         _context.Cards.Add(card);
         await _context.SaveChangesAsync();
 
+        Mock<BlobServiceClient> blob = new Mock<BlobServiceClient>();
+
         IMapper mapper = MockHelpers.CreateMapper();
-        _cardController = new CardController(mapper, new CardService(_context), new UserService(_context));
+        _cardController = new CardController(mapper, new CardService(_context), new UserService(_context), blob.Object);
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
         TokenService tokenService = new TokenService(null!, new Mock<ILogger<TokenService>>().Object);

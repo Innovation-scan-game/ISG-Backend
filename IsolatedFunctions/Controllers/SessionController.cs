@@ -60,12 +60,7 @@ public class SessionController
 
         SubmitAnswerDto? dto = await req.ReadFromJsonAsync<SubmitAnswerDto>();
 
-        // TODO: Verify functionality
 
-        if (await SessionResponseService.UserCompletedQuestion(dbUser.Id, dbUser.CurrentSession!.CurrentRound))
-        {
-            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You already answered this question!")};
-        }
 
 
         if (dto is null)

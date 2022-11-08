@@ -48,7 +48,7 @@ resource isolatedFunction 'Microsoft.Web/sites@2022-03-01' = {
       connectionStrings: [
         {
           name: 'SqlConnectionString'
-          value: 'Server=tcp:${sqlServerName}${sqlServerHostname},1433;Initial Catalog=innovationgame;Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+          connectionString: 'Server=tcp:${sqlServerName}${sqlServerHostname},1433;Initial Catalog=innovationgame;Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
         }
       ]
       appSettings: [

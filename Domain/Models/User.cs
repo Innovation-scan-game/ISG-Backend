@@ -11,9 +11,9 @@ public class User
     public string Password { get; set; } = "";
     public UserRoleEnum Role { get; set; }
 
+    public Guid? CurrentSessionId { get; set; }
     [ForeignKey("SessionId")]
     public virtual GameSession? CurrentSession { get; set; }
-    public Guid? SessionId { get; set; }
     public bool Ready { get; set; }
     public string Picture { get; set; } = "";
 }

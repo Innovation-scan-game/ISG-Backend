@@ -24,15 +24,15 @@ public static class Program
                 configurationBuilder.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
 
-                if (context.HostingEnvironment.IsDevelopment())
-                {
-                    configurationBuilder.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
-                }
-                else
-                {
-                    configurationBuilder.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true,
-                        reloadOnChange: true);
-                }
+                // if (context.HostingEnvironment.IsDevelopment())
+                // {
+                //     configurationBuilder.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
+                // }
+                // else
+                // {
+                //     configurationBuilder.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true,
+                //         reloadOnChange: true);
+                // }
             })
             .ConfigureFunctionsWorkerDefaults(builder =>
             {
@@ -42,7 +42,7 @@ public static class Program
                 builder.UseMiddleware<JwtMiddleware>();
 
 
-                builder.UseWhen<WssMiddleware>(context => { return context.FunctionDefinition.Name == "negotiate"; });
+                builder.UseWhen<WssMiddleware>(context => { return context.FunctionDefinition.Name == "Negotiate"; });
 
 
                 builder.Services.AddAutoMapper(typeof(InnovationGameMappingProfile));
@@ -70,8 +70,7 @@ public static class Program
             .AddLogging()
             .AddDbContext<InnovationGameDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("SqlConnectionString")))
-
-            .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetConnectionString("AzureStorage")); });
+            .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetSection("AzureWebJobsStorage")); });
 
 
         // .AddSingleton()

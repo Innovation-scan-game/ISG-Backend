@@ -32,13 +32,6 @@ public class SignalHubController
         [SignalRConnectionInfoInput(HubName = "Hub")]
         SignalRConnectionInfo connectionInfo, SignalRInvocationContext context)
     {
-        ClaimsPrincipal? principal = executionContext.GetUser();
-        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
-        if (dbUser is null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
-        }
-
         return await req.CreateSuccessResponse(connectionInfo);
     }
 

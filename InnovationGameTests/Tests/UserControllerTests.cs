@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using AutoMapper;
 using Azure.Storage.Blobs;
 using DAL.Data;
 using Domain.Enums;
@@ -59,16 +60,16 @@ public class UserControllerTests
         _context.Users.Add(_user);
         await _context.SaveChangesAsync();
 
-        var logFactory = new Mock<ILoggerFactory>();
-        var mapper = MockHelpers.CreateMapper();
-        var blob = new Mock<BlobServiceClient>();
+        Mock<ILoggerFactory> logFactory = new Mock<ILoggerFactory>();
+        IMapper mapper = MockHelpers.CreateMapper();
+        Mock<BlobServiceClient> blob = new Mock<BlobServiceClient>();
 
-        var loginLogger = new Mock<ILogger<LoginController>>();
-        var jwtLogger = new Mock<ILogger<JwtMiddleware>>();
+        Mock<ILogger<LoginController>> loginLogger = new Mock<ILogger<LoginController>>();
+        Mock<ILogger<JwtMiddleware>> jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
         _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
 
-        var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
+        TokenService tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
 
         _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);

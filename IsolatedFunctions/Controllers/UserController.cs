@@ -48,19 +48,6 @@ public class UserController
         _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
     }
 
-    // [Function(nameof(UploadProfilePicture))]
-    // [OpenApiOperation(operationId: "PostPicture", tags: new[] {"user"}, Summary = "Upload Picture",
-    //     Description = "Uploads a user's profile picture ")]
-    // [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
-    //     Description = "The uploaded picture")]
-    // public async Task<HttpResponseData> UploadProfilePicture(
-    //     [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/uploadpicture")]
-    //     HttpRequestData req,
-    //     FunctionContext executionContext)
-    // {
-    //     var response = req.CreateResponse(HttpStatusCode.OK);
-    //     return response;
-    // }
 
     [Function(nameof(GetAllUsers))]
     [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
@@ -156,7 +143,6 @@ public class UserController
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No file was uploaded.");
         }
-
 
         string[] allowedContent = {"image/png", "image/jpeg"};
 

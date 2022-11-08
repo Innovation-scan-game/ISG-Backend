@@ -1,10 +1,14 @@
 ﻿using System.Net;
 using System.Security.Claims;
 using AutoMapper;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Domain.Enums;
 using Domain.Models;
+using HttpMultipartParser;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.Extensions;
+using IsolatedFunctions.Helper;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
@@ -15,15 +19,17 @@ namespace IsolatedFunctions.Controllers;
 public class CardController
 {
     private readonly IMapper _mapper;
+    private readonly BlobContainerClient _blobContainerClient;
 
     private ICardService CardService { get; }
     private IUserService UserService { get; }
 
-    public CardController(IMapper mapper, ICardService cardService, IUserService userService)
+    public CardController(IMapper mapper, ICardService cardService, IUserService userService, BlobServiceClient blobServiceClient)
     {
         UserService = userService;
         CardService = cardService;
         _mapper = mapper;
+        _blobContainerClient = blobServiceClient.GetBlobContainerClient("card-pictures");
     }
 
     /// <summary>
@@ -82,7 +88,7 @@ public class CardController
         }
 
         Card? card = await CardService.GetCardById(cardId);
-        if (card == null)
+        if (card is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found!");
         }
@@ -115,7 +121,7 @@ public class CardController
         }
 
         CreateCardDto? cardDto = await req.ReadFromJsonAsync<CreateCardDto>();
-        if (cardDto == null)
+        if (cardDto is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid card data!");
         }
@@ -125,7 +131,41 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Card with this name already exists!");
         }
 
-        await CardService.AddCard(_mapper.Map<Card>(cardDto));
+        Card card = _mapper.Map<Card>(cardDto);
+
+        // parse and upload card image
+
+        try
+        {
+            MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
+            FilePart? file = body.Files.First();
+            if (file is not null)
+            {
+                string[] allowedContent = {"image/png", "image/jpeg"};
+
+                if (!allowedContent.Contains(file.ContentType))
+                {
+                    return await req.CreateErrorResponse(HttpStatusCode.BadRequest,
+                        $"Invalid image file format: {file.ContentType}. Only PNGs and JPEGs are allowed.");
+                }
+
+                string ext = file.ContentType is "image/png" ? ".png" : ".jpg";
+
+                Stream s = Helpers.ResizeImage(file);
+                string md5 = Helpers.GenerateMd5Hash(s);
+
+                BlobClient blob = _blobContainerClient.GetBlobClient(md5 + ext);
+                s.Position = 0;
+                await blob.UploadAsync(s, new BlobHttpHeaders {ContentType = file.ContentType});
+
+                card.Picture = blob.Uri.ToString();
+            }
+        }
+        catch (MultipartParseException)
+        {
+        }
+
+        await CardService.AddCard(card);
         return req.CreateResponse(HttpStatusCode.Created);
     }
 

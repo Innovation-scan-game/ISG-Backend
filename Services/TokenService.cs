@@ -57,12 +57,12 @@ public class LoginResult
     [JsonRequired]
     public int ExpiresIn => (int) (Token.ValidTo - DateTime.UtcNow).TotalSeconds;
 
-    public User User { get; }
+    public UserInfo User { get; }
 
     public LoginResult(JwtSecurityToken token, User user)
     {
         Token = token;
-        User = user;
+        User = new UserInfo(user);
     }
 }
 
@@ -122,7 +122,7 @@ public class TokenService : ITokenService
         JwtSecurityToken token = await CreateToken(new Claim[]
         {
             new(ClaimTypes.Role, user.Role.ToString()),
-            new(ClaimTypes.Name, user.Name),
+            new(ClaimTypes.Name, user.Name)
         });
 
         return new LoginResult(token, user);
