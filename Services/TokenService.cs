@@ -29,10 +29,10 @@ public class LoginRequestExample : OpenApiExample<LoginRequest>
 {
     public override IOpenApiExample<LoginRequest> Build(NamingStrategy? namingStrategy = null)
     {
-        Examples.Add(OpenApiExampleResolver.Resolve("Erwin",
+        Examples.Add(OpenApiExampleResolver.Resolve("Username",
             new LoginRequest
             {
-                Username = "Erwin",
+                Username = "username",
                 Password = "SuperSecretPassword123!!"
             },
             namingStrategy));

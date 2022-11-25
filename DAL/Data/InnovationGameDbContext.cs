@@ -15,21 +15,19 @@ public class InnovationGameDbContext : DbContext
     {
     }
 
-    public InnovationGameDbContext(DbContextOptions options) : base(options)
+        public InnovationGameDbContext(DbContextOptions options) : base(options)
     {
     }
 
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!optionsBuilder.IsConfigured)
-        {
-            IConfigurationRoot configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("local.settings.json")
-                .Build();
-            var connectionString = configuration.GetConnectionString("SqlConnectionString");
-            optionsBuilder.UseSqlServer(connectionString);
-        }
+        if (optionsBuilder.IsConfigured) return;
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("local.settings.json")
+            .Build();
+        var connectionString = configuration.GetConnectionString("SqlConnectionString");
+        optionsBuilder.UseSqlServer(connectionString);
     }
 }
