@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Security.Claims;
 using AutoMapper;
 using Domain.Enums;
@@ -315,10 +315,11 @@ public class SessionController
             return new MessageResponse {UserResponse = req.CreateResponse(HttpStatusCode.Unauthorized)};
         }
 
+        UserDto u = _mapper.Map<UserDto>(dbUser);
         SignalRMessageAction message = new SignalRMessageAction("playerLeft")
         {
             GroupName = dbUser.CurrentSession!.SessionCode,
-            Arguments = new object[] {dbUser}
+            Arguments = new object[] {u}
         };
 
         if (dbUser.CurrentSession.HostId == dbUser.Id)
