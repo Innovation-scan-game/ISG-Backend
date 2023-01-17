@@ -21,6 +21,7 @@ namespace InnovationGameTests.Tests;
 public class UserControllerTests
 {
     private InnovationGameDbContext _context = null!;
+    private ImageUploadService _imageUploadService = null!;
     private LoginController _loginController = null!;
     private UserController _userController = null!;
     private User _admin = null!;
@@ -67,7 +68,7 @@ public class UserControllerTests
         Mock<ILogger<LoginController>> loginLogger = new Mock<ILogger<LoginController>>();
         Mock<ILogger<JwtMiddleware>> jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
-        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object);
+        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object, _imageUploadService);
 
         TokenService tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
