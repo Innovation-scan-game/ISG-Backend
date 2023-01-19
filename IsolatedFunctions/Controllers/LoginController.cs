@@ -58,7 +58,7 @@ public class LoginController
         return await req.CreateSuccessResponse(result);
     }
 
-    private bool ValidatePassword(string password, string passwordHash)
+    private static bool ValidatePassword(string password, string passwordHash)
     {
         return BCrypt.Net.BCrypt.Verify(password, passwordHash);
     }
