@@ -8,5 +8,6 @@ public class CardDto
     public int CardNumber { get; set; }
     public string CardName { get; set; } = "";
     public string CardBody { get; set; } = "";
+    public string Picture { get; set; } = "";
     public CardTypeEnum Type { get; set; }
 }

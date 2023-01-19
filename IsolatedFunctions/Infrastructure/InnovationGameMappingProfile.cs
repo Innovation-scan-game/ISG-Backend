@@ -52,7 +52,9 @@ public class InnovationGameMappingProfile : Profile
 
         CreateMap<Card, CardDto>()
             .ForMember(dest => dest.CardName, opt => opt.MapFrom(src => src.Name))
-            .ForMember(dest => dest.CardBody, opt => opt.MapFrom(src => src.Body));
+            .ForMember(dest => dest.CardBody, opt => opt.MapFrom(src => src.Body))
+            .ForMember(dest => dest.Picture, opt => opt.MapFrom(src => src.Picture));
+
 
         CreateMap<GameSession, LobbyResponseDto>();
 
