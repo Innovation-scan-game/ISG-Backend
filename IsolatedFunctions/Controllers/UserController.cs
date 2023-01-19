@@ -104,21 +104,24 @@ public class UserController
     {
         CreateUserDto? createUserDto = await req.ReadFromJsonAsync<CreateUserDto>();
 
-        if (createUserDto == null)
+        if (createUserDto is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request.");
         }
 
-
-        if (await UserService.GetExistingUser(createUserDto.Username, createUserDto.Email) != null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Username or Email already exists.");
-        }
-
         User user = _mapper.Map<User>(createUserDto);
-        await UserService.AddUser(user);
 
-        return await req.CreateSuccessResponse(createUserDto);
+
+        try
+        {
+            await UserService.AddUser(user);
+            return await req.CreateSuccessResponse(createUserDto);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error while creating user");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
 
     [Function(nameof(UploadAvatar))]

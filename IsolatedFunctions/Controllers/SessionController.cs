@@ -113,7 +113,6 @@ public class SessionController
 
         var message = new SignalRMessageAction("newMessage")
         {
-            //TODO: Check for NULL
             GroupName = dbUser.CurrentSession!.SessionCode,
             Arguments = new object[] {userDto, dbUser.CurrentSession.CurrentRound, chatMessage!.Message}
         };

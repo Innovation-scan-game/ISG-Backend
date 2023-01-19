@@ -14,4 +14,10 @@
       <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.OpenApi" Version="1.4.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="FluentValidation">
+        <HintPath>..\..\..\.nuget\packages\fluentvalidation\11.4.0\lib\net6.0\FluentValidation.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>
