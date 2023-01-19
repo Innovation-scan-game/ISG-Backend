@@ -47,20 +47,19 @@ public class LoginController
 
         User? dbUser = await UserService.GetUserByName(login.Username);
 
-
-        if (dbUser is null)
+        if (dbUser is null || !ValidatePassword(login.Password, dbUser.Password))
         {
-            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found!");
-        }
-
-        if (!BCrypt.Net.BCrypt.Verify(login.Password, dbUser.Password))
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid password!");
+            return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Invalid username or password.");
         }
 
         Logger.LogInformation("User {DbUserName} logged in", dbUser.Name);
         LoginResult result = await TokenService.CreateToken(dbUser);
 
         return await req.CreateSuccessResponse(result);
+    }
+
+    private bool ValidatePassword(string password, string passwordHash)
+    {
+        return BCrypt.Net.BCrypt.Verify(password, passwordHash);
     }
 }
