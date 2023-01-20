@@ -81,15 +81,9 @@ public static class Program
             .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetSection("AzureWebJobsStorage")); });
 
         services.AddScoped<IValidator<Card>, CardValidator>();
-
-        // services.AddScoped<IValidator<ChatMessageDto>, ChatMessageDtoValidator>();
-        // services.AddScoped<IValidator<JoinRequestDto>, JoinRequestValidator>();
-        // services.AddScoped<IValidator<CreateUserDto>, CreateUserValidator>();
-        // services.AddScoped<IValidator<CreateCardDto>, CreateCardValidator>();
-        // services.AddScoped<IValidator<EditCardDto>, EditCardValidator>();
-        // services.AddScoped<IValidator<EditUserDto>, EditUserValidator>();
-        // services.AddScoped<IValidator<JoinRequestDto>, JoinRequestValidator>();
-        // services.AddScoped<IValidator<SessionOptionsDto>, SessionOptionsValidator>();
+        services.AddScoped<IValidator<User>, UserValidator>();
+        services.AddScoped<IValidator<GameSession>, GameSessionValidator>();
+        services.AddScoped<IValidator<SessionResponse>, SessionResponseValidator>();
 
     }
 

@@ -41,6 +41,7 @@ public class LoginController
 
         if (login is null)
         {
+            Logger.LogInformation("Login request was null");
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid login request!");
         }
 
@@ -49,6 +50,7 @@ public class LoginController
 
         if (dbUser is null || !ValidatePassword(login.Password, dbUser.Password))
         {
+            Logger.LogInformation("Invalid login attempt for user {username}", login.Username);
             return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Invalid username or password.");
         }
 

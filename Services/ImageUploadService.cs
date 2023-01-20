@@ -13,23 +13,38 @@ public class ImageUploadService : IImageUploadService
     private readonly BlobServiceClient _blobServiceClient;
 
     private const int MaxWidth = 512;
-    
+
     public async Task<string> UploadImage(FilePart file, Enums.BlobContainerName imageContainerName)
     {
+        if (!IsContentTypeAllowed(file.ContentType))
+            throw new ArgumentException("Invalid image file type!");
+        if (!IsContentSizeAppropriate(file.Data))
+            throw new ArgumentException("File size must be between 1 KByte and 5 MB!");
+
         string extension = file.ContentType is "image/png" ? ".png" : ".jpg";
 
         Stream stream = ResizeImage(file);
         string md5 = GenerateMd5Hash(stream);
-        
-        
+
 
         var blobContainterClient = _blobServiceClient.GetBlobContainerClient(imageContainerName.ToString());
 
         BlobClient blob = blobContainterClient.GetBlobClient(md5 + extension);
         stream.Position = 0;
-        await blob.UploadAsync(stream, new BlobHttpHeaders { ContentType = file.ContentType });
-
+        await blob.UploadAsync(stream, new BlobHttpHeaders {ContentType = file.ContentType});
         return blob.Uri.ToString();
+    }
+
+    private static bool IsContentSizeAppropriate(Stream data)
+    {
+        return data.Length is > 1024 and < 1024 * 1024 * 5;
+    }
+
+
+    private static bool IsContentTypeAllowed(string contentType)
+    {
+        string[] allowedContent = {"image/png", "image/jpeg"};
+        return allowedContent.Contains(contentType);
     }
 
     private static string GenerateMd5Hash(Stream stream)
@@ -49,7 +64,7 @@ public class ImageUploadService : IImageUploadService
         }
         else
         {
-            image.Save(stream,image.RawFormat);
+            image.Save(stream, image.RawFormat);
         }
 
         stream.Position = 0;

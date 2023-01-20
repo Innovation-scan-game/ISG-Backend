@@ -42,6 +42,17 @@ public class UserService : IUserService {
         return loggedInUser;
     }
 
+    public Task RemoveUsersFromSession(Guid currentSessionId)
+    {
+        var users = GetUsersInSession(currentSessionId);
+        foreach (var user in users)
+        {
+            user.CurrentSession = null;
+            user.Ready = false;
+        }
+        return _context.SaveChangesAsync();
+    }
+
     public async Task<List<User>> GetAllUsers() {
         return await _context.Users.Include(usr => usr.CurrentSession).ToListAsync();
     }

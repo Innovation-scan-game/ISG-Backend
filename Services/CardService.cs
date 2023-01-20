@@ -19,6 +19,11 @@ public class CardService : ICardService
 
     public async Task AddCard(Card card)
     {
+        if (await GetCardById(card.Id) is not null)
+        {
+            throw new Exception("Card already exists");
+        }
+
         var validation = await _validator.ValidateAsync(card);
         if (!validation.IsValid)
         {

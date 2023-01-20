@@ -129,27 +129,25 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid card data!");
         }
 
-        if (await CardService.CardExists(cardDto.Name))
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "A card with this name already exists!");
-        }
 
         Card card = _mapper.Map<Card>(cardDto);
 
         FilePart? file = body.Files?.ToList().FirstOrDefault();
 
-
         if (file is not null)
         {
-            if (!IsContentTypeAllowed(file.ContentType))
-                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid image file type!");
-            if (!IsContentSizeAppropriate(file.Data))
-                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "File size must be between 1 KByte and 5 MB!");
             card.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
         }
 
-        await CardService.AddCard(card);
-        return req.CreateResponse(HttpStatusCode.Created);
+        try
+        {
+            await CardService.AddCard(card);
+            return req.CreateResponse(HttpStatusCode.Created);
+        }
+        catch (Exception e)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
 
 
@@ -166,17 +164,6 @@ public class CardController
         }
     }
 
-    private bool IsContentSizeAppropriate(Stream data)
-    {
-        return data.Length is > 1024 and < 1024 * 1024 * 5;
-    }
-
-
-    private bool IsContentTypeAllowed(string contentType)
-    {
-        string[] allowedContent = {"image/png", "image/jpeg"};
-        return allowedContent.Contains(contentType);
-    }
 
     [Function(nameof(EditCard))]
     [OpenApiOperation(operationId: "EditCard", tags: new[] {"cards"}, Summary = "Edit an existing card",
@@ -209,28 +196,29 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid input!");
         }
 
-        Card? dbCard = await CardService.GetCardById(Guid.Parse(editCardDto.Id));
+        Card updatedCard = _mapper.Map<Card>(editCardDto);
 
-        if (dbCard is null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "A card with this ID does not exist!");
-        }
-
-        dbCard.Name = editCardDto.Name;
-        dbCard.Body = editCardDto.Body;
-        dbCard.Type = (CardTypeEnum) editCardDto.Type;
 
         FilePart? file = body.Files?.ToList().FirstOrDefault();
         if (file is not null)
         {
-            if (!IsContentTypeAllowed(file.ContentType))
-                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid image file type!");
-            if (!IsContentSizeAppropriate(file.Data))
-                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "File size must be between 1 KByte and 5 MB!");
-            dbCard.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
+            try
+            {
+                updatedCard.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
+            } catch (Exception e)
+            {
+                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+            }
         }
 
-        await CardService.UpdateCard(dbCard);
-        return await req.CreateSuccessResponse(HttpStatusCode.OK);
+        try
+        {
+            await CardService.UpdateCard(updatedCard);
+            return await req.CreateSuccessResponse(HttpStatusCode.OK);
+        }
+        catch (Exception e)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
 }
