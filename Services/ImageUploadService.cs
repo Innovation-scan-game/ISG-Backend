@@ -2,6 +2,7 @@
 using HttpMultipartParser;
 using Services.Interfaces;
 using System.Drawing;
+using System.Text;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 
@@ -9,13 +10,16 @@ namespace Services;
 
 public class ImageUploadService : IImageUploadService
 {
-    private static readonly MD5 Algo = MD5.Create();
+    private static readonly SHA256 Algo = SHA256.Create();
     private readonly BlobServiceClient _blobServiceClient;
 
     private const int MaxWidth = 512;
 
     public async Task<string> UploadImage(FilePart file, Enums.BlobContainerName imageContainerName)
     {
+        var storageName = "card-pictures";
+        if (imageContainerName == Enums.BlobContainerName.ProfileImages)
+            storageName = "profile-pictures";
         if (!IsContentTypeAllowed(file.ContentType))
             throw new ArgumentException("Invalid image file type!");
         if (!IsContentSizeAppropriate(file.Data))
@@ -24,12 +28,12 @@ public class ImageUploadService : IImageUploadService
         string extension = file.ContentType is "image/png" ? ".png" : ".jpg";
 
         Stream stream = ResizeImage(file);
-        string md5 = GenerateMd5Hash(stream);
+        string sha256 = GenerateSha256Hash(stream);
 
 
-        var blobContainterClient = _blobServiceClient.GetBlobContainerClient(imageContainerName.ToString());
+        var blobContainerClient = _blobServiceClient.GetBlobContainerClient(storageName);
 
-        BlobClient blob = blobContainterClient.GetBlobClient(md5 + extension);
+        BlobClient blob = blobContainerClient.GetBlobClient(sha256 + extension);
         stream.Position = 0;
         await blob.UploadAsync(stream, new BlobHttpHeaders {ContentType = file.ContentType});
         return blob.Uri.ToString();
@@ -47,10 +51,11 @@ public class ImageUploadService : IImageUploadService
         return allowedContent.Contains(contentType);
     }
 
-    private static string GenerateMd5Hash(Stream stream)
+    private static string GenerateSha256Hash(Stream stream)
     {
+
         byte[] hash = Algo.ComputeHash(stream);
-        return string.Concat(hash.Select(b => b.ToString("x2")));
+        return Convert.ToHexString(hash)[..24];
     }
 
     private static Stream ResizeImage(FilePart filePart)
@@ -62,10 +67,7 @@ public class ImageUploadService : IImageUploadService
         {
             var resized = image.GetThumbnailImage(MaxWidth, MaxWidth * image.Height / image.Width, null, IntPtr.Zero);
         }
-        else
-        {
-            image.Save(stream, image.RawFormat);
-        }
+        image.Save(stream, image.RawFormat);
 
         stream.Position = 0;
         return stream;

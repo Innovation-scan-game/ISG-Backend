@@ -39,15 +39,13 @@ public class UserController
     private IUserService UserService { get; }
 
     private readonly IImageUploadService _imageUploadService;
-    private readonly BlobContainerClient _blobContainerClient;
 
     public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper,
-        BlobServiceClient blobServiceClient, IImageUploadService imageUploadService)
+        IImageUploadService imageUploadService)
     {
         UserService = userService;
         _logger = loggerFactory.CreateLogger<UserController>();
         _mapper = mapper;
-        _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
         _imageUploadService = imageUploadService;
     }
 
@@ -133,19 +131,19 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        if (await UserService.CheckUserLoggedIn(executionContext.GetUser()!) is not null)
+        User? user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
+        if (user is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
         }
 
         MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
-        FilePart? file = body.Files.First();
+        FilePart? file = body.Files[0];
         if (file == null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No file was uploaded.");
         }
 
-        User? user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
         user.Picture = await _imageUploadService.UploadImage(file, Enums.BlobContainerName.ProfileImages);
         await UserService.UpdateUser(user);
         return req.CreateResponse(HttpStatusCode.OK);
