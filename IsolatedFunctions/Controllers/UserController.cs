@@ -20,8 +20,10 @@ using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
 
-public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute {
-    public ExampleAuthAttribute() : base("ExampleAuth", SecuritySchemeType.Http) {
+public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute
+{
+    public ExampleAuthAttribute() : base("ExampleAuth", SecuritySchemeType.Http)
+    {
         Description = "JWT for authorization";
         In = OpenApiSecurityLocationType.Header;
         Scheme = OpenApiSecuritySchemeType.Bearer;
@@ -29,24 +31,21 @@ public sealed class ExampleAuthAttribute : OpenApiSecurityAttribute {
     }
 }
 
-public class UserController {
+public class UserController
+{
     private readonly ILogger<UserController> _logger;
     private readonly IMapper _mapper;
 
     private IUserService UserService { get; }
-
     private readonly IImageUploadService _imageUploadService;
-    private readonly BlobContainerClient _blobContainerClient;
 
-    public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper,
-        BlobServiceClient blobServiceClient, IImageUploadService imageUploadService) {
+    public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper, IImageUploadService imageUploadService)
+    {
         UserService = userService;
         _logger = loggerFactory.CreateLogger<UserController>();
         _mapper = mapper;
-        _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
         _imageUploadService = imageUploadService;
     }
-
 
     [Function(nameof(GetAllUsers))]
     [OpenApiOperation(operationId: "GetUsers", tags: new[] { "user" }, Summary = "Get all Users",
@@ -55,14 +54,16 @@ public class UserController {
         Description = "List of all users")]
     public async Task<HttpResponseData> GetAllUsers(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")]
-        HttpRequestData req, FunctionContext executionContext) {
-        if (await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!)) {
+        HttpRequestData req, FunctionContext executionContext)
+    {
+        _logger.LogInformation($"{executionContext.GetUser()?.Identity?.Name ?? "Someone"} attempted to obtain all users.");
+        if (await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
-        }
 
-        List<User> users = await UserService.GetAllUsers();
+        var users = await UserService.GetAllUsers();
 
-        UserDto[]? userDtos = _mapper.Map<UserDto[]>(users);
+        var userDtos = _mapper.Map<UserDto[]>(users);
+        _logger.LogInformation("User request successful.");
         return await req.CreateSuccessResponse(userDtos);
     }
 
@@ -74,13 +75,19 @@ public class UserController {
     public async Task<HttpResponseData> GetUserById(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")]
         HttpRequestData req,
-        string id) {
-        User? user = await UserService.GetUser(Guid.Parse(id));
+        string id)
+    {
+        _logger.LogInformation($"User requested: {id}");
+        User? user;
+        if (Guid.TryParse(id, out var userId))
+            user = await UserService.GetUser(userId);
+        else
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Not a valid id.");
 
-        if (user == null) {
+        if (user == null)
             return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found.");
-        }
 
+        _logger.LogInformation("User Obtained.");
         return await req.CreateSuccessResponse(_mapper.Map<UserDto>(user));
     }
 
@@ -92,22 +99,28 @@ public class UserController {
         Description = "The created user")]
     public async Task<HttpResponseData> CreateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user")]
-        HttpRequestData req, FunctionContext executionContext) {
-        CreateUserDto? createUserDto = await req.ReadFromJsonAsync<CreateUserDto>();
+        HttpRequestData req, FunctionContext executionContext)
+    {
+        var createUserDto = await req.ReadFromJsonAsync<CreateUserDto>();
+        _logger.LogInformation($"Trying to create user: {createUserDto?.Username ?? "[Invalid]"}.");
 
-        if (createUserDto == null) {
+        if (createUserDto == null)
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request.");
-        }
 
+        User createUser = new()
+        {
+            Name = createUserDto.Username ?? "",
+            Email = createUserDto.Email,
+            Password = createUserDto.Password,
+            Role = UserRoleEnum.User
+        };
 
-        if (await UserService.GetExistingUser(createUserDto.Username, createUserDto.Email) != null) {
+        if (await UserService.GetExistingUser(createUser.Name, createUser.Email) != null)
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Username or Email already exists.");
-        }
 
-        User user = _mapper.Map<User>(createUserDto);
-        await UserService.AddUser(user);
-
-        return await req.CreateSuccessResponse(createUserDto);
+        await UserService.AddUser(createUser);
+        _logger.LogInformation("User successfully created.");
+        return await req.CreateSuccessResponse(createUser);
     }
 
     [Function(nameof(UploadAvatar))]
@@ -117,73 +130,73 @@ public class UserController {
         Description = "The uploaded avatar")]
     public async Task<HttpResponseData> UploadAvatar(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
-        HttpRequestData req, FunctionContext executionContext) {
-        if (await UserService.CheckUserLoggedIn(executionContext.GetUser()!) is not null) {
+        HttpRequestData req, FunctionContext executionContext)
+    {
+        _logger.LogInformation($"Avatar being altered for: {executionContext.GetUser()?.Identity?.Name ?? "Someone"}.");
+        if (await UserService.CheckUserLoggedIn(executionContext.GetUser()) is not null)
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
-        }
 
-        MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
-        FilePart? file = body.Files.First();
-        if (file == null) {
+        var body = await MultipartFormDataParser.ParseAsync(req.Body);
+        var file = body.Files[0];
+
+        if (file == null)
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No file was uploaded.");
-        }
 
-        User? user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
-        user.Picture = await _imageUploadService.UploadImage(file, Enums.BlobContainerName.ProfileImages);
+        var user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
+        user!.Picture = await _imageUploadService.UploadImage(file, Enums.BlobContainerName.ProfileImages);
         await UserService.UpdateUser(user);
+
+        _logger.LogInformation($"Avatar updated for: {user.Name} ({user.Id})");
         return req.CreateResponse(HttpStatusCode.OK);
     }
 
-
     [Function(nameof(UpdateUser))]
     [OpenApiOperation(operationId: "UpdateUser", tags: new[] { "user" }, Summary = "Update an existing user",
-        Description = "Updates a user ")]
+                Description = "Updates a user ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
-        Description = "the updated user")]
+                Description = "the updated user")]
     public async Task<HttpResponseData> UpdateUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user")]
-        HttpRequestData req, FunctionContext executionContext) {
-        ClaimsPrincipal? principal = executionContext.GetUser();
-
-        if (principal == null) {
+                [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user")]
+        HttpRequestData req, FunctionContext executionContext)
+    {
+        var principal = executionContext.GetUser();
+        _logger.LogInformation($"{principal?.Identity?.Name ?? "Unknown user"} being updated.");
+        if (principal == null)
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to change users.");
-        }
 
-        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
+        var loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
+        if (loggedInUser == null)
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid login.");
 
-        EditUserDto? editUser = await req.ReadFromJsonAsync<EditUserDto>();
+        var editUser = await req.ReadFromJsonAsync<EditUserDto>();
 
         User? target;
-        if (editUser!.Id == "") {
-            target = loggedInUser!;
-        } else {
-            if (!Guid.TryParse(editUser.Id, out Guid id)) {
+        if (editUser!.Id == "")
+            target = loggedInUser;
+        else
+        {
+            if (!Guid.TryParse(editUser.Id, out var id))
                 return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid user id");
-            }
 
             target = await UserService.GetUser(id);
-            if (target == null) {
+            if (target == null)
                 return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
-            }
         }
 
-        if (CheckAuth(loggedInUser, target)) {
+        if (CheckAuth(loggedInUser, target))
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to edit this user");
-        }
 
-
-        if (await CheckUsernameOverridden(editUser, loggedInUser)) {
+        if (await CheckUsernameOverridden(editUser, loggedInUser))
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That username is already taken.");
-        }
 
-        if (await CheckEmailOverridden(editUser, loggedInUser)) {
+        if (await CheckEmailOverridden(editUser, loggedInUser))
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That email is already taken.");
-        }
 
         _mapper.Map(editUser, target);
         await UserService.UpdateUser(target);
 
         var result = _mapper.Map<UserDto>(target);
+        _logger.LogInformation($"User {target.Name} ({target.Id}) updated.");
         return await req.CreateSuccessResponse(result);
     }
 
@@ -195,29 +208,29 @@ public class UserController {
     public async Task<HttpResponseData> DeleteUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "user/{id}")]
         HttpRequestData req, FunctionContext executionContext,
-        string id) {
-        User? loggedInUser = await UserService.CheckUserLoggedIn(executionContext.GetUser());
+        string id)
+    {
+        _logger.LogInformation($"{executionContext.GetUser()?.Identity?.Name ?? "Unknown user"} being deleted.");
+        var loggedInUser = await UserService.CheckUserLoggedIn(executionContext.GetUser());
 
-        if (loggedInUser is null) {
+        if (loggedInUser is null)
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to delete users.");
-        }
 
+        if (Guid.TryParse(id, out var userId))
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Not a valid guid.");
+        var user = await UserService.GetUser(userId);
 
-        User? user = await UserService.GetUser(Guid.Parse(id));
-
-        if (user == null) {
+        if (user == null)
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
-        }
-
-        if (CheckAuth(loggedInUser, user)) {
+        if (CheckAuth(loggedInUser, user))
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to delete other users.");
-        }
 
         await UserService.DeleteUser(user.Id);
+        _logger.LogInformation($"User {user.Name} ({user.Id}) deleted.");
         return req.CreateResponse(HttpStatusCode.OK);
     }
 
-    private bool CheckAuth(User user, User target) => user!.Role != UserRoleEnum.Admin && target.Id != user.Id;
+    private static bool CheckAuth(User user, User target) => user!.Role != UserRoleEnum.Admin && target.Id != user.Id;
     private async Task<bool> CheckUsernameOverridden(EditUserDto user, User target) => user.Username != target.Name && await UserService.GetUserByName(user.Username) != null;
     private async Task<bool> CheckEmailOverridden(EditUserDto user, User target) => user.Email != target.Email && await UserService.GetUserByEmail(user.Email) != null;
 }
