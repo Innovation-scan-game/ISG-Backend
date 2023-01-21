@@ -3,15 +3,12 @@ using System.Security.Claims;
 using AutoMapper;
 using Domain.Enums;
 using Domain.Models;
-using FluentValidation;
 using HttpMultipartParser;
 using IsolatedFunctions.DTO.CardDTOs;
-using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Extensions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Newtonsoft.Json;
 using Services;
 using Services.Interfaces;
 
@@ -100,6 +97,45 @@ public class CardController
         return await req.CreateSuccessResponse(HttpStatusCode.OK);
     }
 
+
+    [Function(nameof(AddCardImage))]
+    public async Task<HttpResponseData> AddCardImage(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "cards/{id}/image")]
+        HttpRequestData req, FunctionContext executionContext, Guid id)
+    {
+        ClaimsPrincipal? user = executionContext.GetUser();
+        User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
+        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
+        }
+
+        if (req.Body == Stream.Null)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.NoContent);
+        }
+
+        Card card = await CardService.GetCardById(id);
+
+        MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
+        FilePart? file = body.Files?.ToList().FirstOrDefault();
+
+        if (file is not null)
+        {
+            card.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
+        }
+
+        try
+        {
+            await CardService.UpdateCard(card);
+            return req.CreateResponse(HttpStatusCode.Created);
+        }
+        catch (Exception e)
+        {
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
+    }
+
     [Function(nameof(CreateCard))]
     [OpenApiOperation(operationId: "CreateCard", tags: new[] {"cards"}, Summary = "Creates a new card",
         Description = "Create a single card")]
@@ -116,13 +152,7 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
-        if (req.Body == Stream.Null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.NoContent);
-        }
-
-        MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
-        CreateCardDto? cardDto = GetCardDtoFromRequest<CreateCardDto>(body);
+        CreateCardDto? cardDto = await req.ReadFromJsonAsync<CreateCardDto>();
 
         if (cardDto is null)
         {
@@ -132,13 +162,6 @@ public class CardController
 
         Card card = _mapper.Map<Card>(cardDto);
 
-        FilePart? file = body.Files?.ToList().FirstOrDefault();
-
-        if (file is not null)
-        {
-            card.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
-        }
-
         try
         {
             await CardService.AddCard(card);
@@ -147,20 +170,6 @@ public class CardController
         catch (Exception e)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
-        }
-    }
-
-
-    private static T? GetCardDtoFromRequest<T>(IMultipartFormDataParser formData)
-    {
-        try
-        {
-            string? json = formData.GetParameterValue("json");
-            return JsonConvert.DeserializeObject<T>(json);
-        }
-        catch (Exception)
-        {
-            return default;
         }
     }
 
@@ -187,8 +196,7 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No input!");
         }
 
-        MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
-        EditCardDto? editCardDto = GetCardDtoFromRequest<EditCardDto?>(body);
+        EditCardDto? editCardDto = await req.ReadFromJsonAsync<EditCardDto>();
 
 
         if (editCardDto is null)
@@ -197,19 +205,6 @@ public class CardController
         }
 
         Card updatedCard = _mapper.Map<Card>(editCardDto);
-
-
-        FilePart? file = body.Files?.ToList().FirstOrDefault();
-        if (file is not null)
-        {
-            try
-            {
-                updatedCard.Picture = await ImageUploadService.UploadImage(file, Enums.BlobContainerName.CardImages);
-            } catch (Exception e)
-            {
-                return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
-            }
-        }
 
         try
         {
