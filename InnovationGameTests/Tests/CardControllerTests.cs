@@ -79,6 +79,9 @@ public class CardControllerTests
         };
 
         string json = JsonConvert.SerializeObject(createCardDto);
+
+
+
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json, _token);
 

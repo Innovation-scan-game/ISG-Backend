@@ -40,11 +40,11 @@ public class UserController
 
     private readonly IImageUploadService _imageUploadService;
 
-    public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper,
+    public UserController(ILogger<UserController> logger, IUserService userService, IMapper mapper,
         IImageUploadService imageUploadService)
     {
         UserService = userService;
-        _logger = loggerFactory.CreateLogger<UserController>();
+        _logger = logger;
         _mapper = mapper;
         _imageUploadService = imageUploadService;
     }

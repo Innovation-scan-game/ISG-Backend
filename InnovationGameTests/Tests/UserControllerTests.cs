@@ -69,8 +69,12 @@ public class UserControllerTests
         Mock<ILogger<LoginController>> loginLogger = new Mock<ILogger<LoginController>>();
         Mock<ILogger<JwtMiddleware>> jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
+
+        var mock = new Mock<ILogger<UserController>>();
+        ILogger<UserController> logger = mock.Object;
+
         _userController =
-            new UserController(logFactory.Object, new UserService(_context, new UserValidator()), mapper, _imageUploadService);
+            new UserController(logger, new UserService(_context, new UserValidator()), mapper, _imageUploadService);
 
         TokenService tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
         _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context, new UserValidator()));

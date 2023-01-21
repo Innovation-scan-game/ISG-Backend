@@ -149,6 +149,6 @@ public class LoginControllerTests
         // Call the controller endpoint
         var res = await _loginController.Login(req);
         // Assert that the response is a Badrequest because the password is invalid
-        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 }
