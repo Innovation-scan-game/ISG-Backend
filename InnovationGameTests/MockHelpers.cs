@@ -4,6 +4,7 @@ using Azure.Core.Serialization;
 using DAL.Data;
 using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
+using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -77,7 +78,7 @@ public static class MockHelpers
     public static async Task<string> GetLoginToken(string username, string password)
     {
         Mock<ILogger<LoginController>> logger = new();
-        LoginController loginController = new(CreateTokenService(), logger.Object, CreateMapper(), new UserService(CreateDbContext()));
+        LoginController loginController = new(CreateTokenService(), logger.Object, CreateMapper(), new UserService(CreateDbContext(), new UserValidator()));
 
         LoginRequest loginRequest = new()
         {

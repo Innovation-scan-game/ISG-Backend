@@ -3,7 +3,10 @@ using Azure.Storage.Blobs;
 using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
+using FluentValidation;
 using IsolatedFunctions.Controllers;
+using IsolatedFunctions.DTO.Validators;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -62,7 +65,7 @@ public class LoginControllerTests
 
 
         var tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
-        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
+        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context, new UserValidator()));
 
     }
 

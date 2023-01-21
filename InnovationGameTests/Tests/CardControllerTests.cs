@@ -7,6 +7,7 @@ using Domain.Models;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
+using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -50,7 +51,7 @@ public class CardControllerTests
         Mock<BlobServiceClient> blob = new Mock<BlobServiceClient>();
 
         IMapper mapper = MockHelpers.CreateMapper();
-        _cardController = new CardController(mapper, new CardService(_context), new UserService(_context), new ImageUploadService(blob.Object));
+        _cardController = new CardController(mapper, new CardService(_context, new CardValidator() ), new UserService(_context, new UserValidator()), new ImageUploadService(blob.Object));
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
         TokenService tokenService = new TokenService(null!, new Mock<ILogger<TokenService>>().Object);

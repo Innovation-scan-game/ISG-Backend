@@ -7,6 +7,7 @@ using Domain.Models;
 using InnovationGameTests.DTOs;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.UserDTOs;
+using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -68,10 +69,11 @@ public class UserControllerTests
         Mock<ILogger<LoginController>> loginLogger = new Mock<ILogger<LoginController>>();
         Mock<ILogger<JwtMiddleware>> jwtLogger = new Mock<ILogger<JwtMiddleware>>();
 
-        _userController = new UserController(logFactory.Object, new UserService(_context), mapper, blob.Object, _imageUploadService);
+        _userController =
+            new UserController(logFactory.Object, new UserService(_context, new UserValidator()), mapper, _imageUploadService);
 
         TokenService tokenService = new TokenService(null!, logFactory.Object.CreateLogger<TokenService>());
-        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context));
+        _loginController = new LoginController(tokenService, loginLogger.Object, mapper, new UserService(_context, new UserValidator()));
 
         _middleware = new JwtMiddleware(tokenService, jwtLogger.Object);
 
