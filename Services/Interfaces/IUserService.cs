@@ -1,9 +1,9 @@
-﻿using Domain.Models;
+﻿using System.Security.Claims;
+using Domain.Models;
 
 namespace Services.Interfaces;
 
-public interface IUserService
-{
+public interface IUserService {
     Task<User?> GetUser(Guid id);
     Task<List<User>> GetAllUsers();
     Task<User?> GetUserByEmail(string email);
@@ -13,4 +13,6 @@ public interface IUserService
     Task UpdateUser(User user);
     IQueryable<User> GetUsersInSession(Guid sessionId);
     Task<User?> GetExistingUser(string username, string email);
+    Task<bool> CheckUserAllowAdminChange(ClaimsPrincipal principal);
+    Task<User?> CheckUserLoggedIn(ClaimsPrincipal principal);
 }

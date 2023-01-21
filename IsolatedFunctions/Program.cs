@@ -56,6 +56,7 @@ public static class Program
                 builder.Services.AddTransient<ICardService, CardService>();
                 builder.Services.AddTransient<ISessionService, SessionService>();
                 builder.Services.AddTransient<ISessionResponseService, SessionResponseService>();
+                builder.Services.AddTransient<IImageUploadService, ImageUploadService>();
             })
             .ConfigureServices((context, collection) => ConfigureServices(collection, context.Configuration))
             .ConfigureOpenApi()
