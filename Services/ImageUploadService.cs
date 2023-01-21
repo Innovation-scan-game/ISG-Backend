@@ -23,9 +23,9 @@ public class ImageUploadService : IImageUploadService
         
         
 
-        var blobContainterClient = _blobServiceClient.GetBlobContainerClient(imageContainerName.ToString());
+        var blobContainerClient = _blobServiceClient.GetBlobContainerClient(imageContainerName.ToString());
 
-        BlobClient blob = blobContainterClient.GetBlobClient(md5 + extension);
+        BlobClient blob = blobContainerClient.GetBlobClient(md5 + extension);
         stream.Position = 0;
         await blob.UploadAsync(stream, new BlobHttpHeaders { ContentType = file.ContentType });
 
