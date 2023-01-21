@@ -226,7 +226,7 @@ public class CardControllerTests
         // Create EditCardDto to create changes to an already existing card
         EditCardDto editCardDto = new EditCardDto
         {
-            Id = cardToEdit.Id.ToString(),
+            Id = cardToEdit.Id,
             Name = "CardNameChanged",
             Body = "CardBodyChanged",
             Type = 1,
@@ -260,7 +260,7 @@ public class CardControllerTests
         // Create EditCardDto to edit a card with an unknown ID
         EditCardDto editCardDto = new EditCardDto
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             Name = "CardNameChanged",
             Body = "CardBodyChanged",
             Type = 1,

@@ -191,11 +191,6 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to edit cards!");
         }
 
-        if (req.Body.Length == 0)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No input!");
-        }
-
         EditCardDto? editCardDto = await req.ReadFromJsonAsync<EditCardDto>();
 
 

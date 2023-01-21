@@ -24,6 +24,11 @@ public class CardService : ICardService
             throw new Exception("Card already exists");
         }
 
+        if (_context.Cards.Any(c => c.Name == card.Name))
+        {
+            throw new Exception("Card already exists");
+        }
+
         var validation = await _validator.ValidateAsync(card);
         if (!validation.IsValid)
         {
@@ -46,6 +51,7 @@ public class CardService : ICardService
         {
             throw new Exception(validation.Errors[0].ErrorMessage);
         }
+        _context.ChangeTracker.Clear();
 
         _context.Cards.Update(card);
         await _context.SaveChangesAsync();

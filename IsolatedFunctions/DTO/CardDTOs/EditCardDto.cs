@@ -4,5 +4,5 @@ namespace IsolatedFunctions.DTO.CardDTOs;
 
 public class EditCardDto : CreateCardDto
 {
-    [JsonRequired] public string Id { get; set; } = "";
+    [JsonRequired] public Guid Id { get; set; }
 }
