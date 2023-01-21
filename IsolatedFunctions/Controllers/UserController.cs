@@ -15,6 +15,7 @@ using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Services;
 using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
@@ -37,15 +38,15 @@ public class UserController
 
     private IUserService UserService { get; }
 
-    private readonly BlobContainerClient _blobContainerClient;
+    private readonly IImageUploadService _imageUploadService;
 
     public UserController(ILoggerFactory loggerFactory, IUserService userService, IMapper mapper,
-        BlobServiceClient blobServiceClient)
+        IImageUploadService imageUploadService)
     {
         UserService = userService;
         _logger = loggerFactory.CreateLogger<UserController>();
         _mapper = mapper;
-        _blobContainerClient = blobServiceClient.GetBlobContainerClient("profile-pictures");
+        _imageUploadService = imageUploadService;
     }
 
 
@@ -58,9 +59,7 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        ClaimsPrincipal? principal = executionContext.GetUser();
-        User? dbUser = await UserService.GetUserByName(principal?.Identity?.Name!);
-        if (dbUser is null || dbUser.Role != UserRoleEnum.Admin)
+        if (await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
@@ -100,25 +99,27 @@ public class UserController
     public async Task<HttpResponseData> CreateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user")]
         HttpRequestData req, FunctionContext executionContext)
-
     {
         CreateUserDto? createUserDto = await req.ReadFromJsonAsync<CreateUserDto>();
 
-        if (createUserDto == null)
+        if (createUserDto is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request.");
         }
 
-
-        if (await UserService.GetExistingUser(createUserDto.Username, createUserDto.Email) != null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Username or Email already exists.");
-        }
-
         User user = _mapper.Map<User>(createUserDto);
-        await UserService.AddUser(user);
 
-        return await req.CreateSuccessResponse(createUserDto);
+
+        try
+        {
+            await UserService.AddUser(user);
+            return await req.CreateSuccessResponse(createUserDto);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error while creating user");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
 
     [Function(nameof(UploadAvatar))]
@@ -130,38 +131,20 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        ClaimsPrincipal? principal = executionContext.GetUser();
-        User? user = await UserService.GetUserByName(principal?.Identity?.Name!);
+        User? user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
         if (user is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
         }
 
         MultipartFormDataParser? body = await MultipartFormDataParser.ParseAsync(req.Body);
-        FilePart? file = body.Files.First();
+        FilePart? file = body.Files[0];
         if (file == null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "No file was uploaded.");
         }
 
-        string[] allowedContent = {"image/png", "image/jpeg"};
-
-        if (!allowedContent.Contains(file.ContentType))
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest,
-                $"Invalid image file format: {file.ContentType}. Only PNGs and JPEGs are allowed.");
-        }
-
-        string ext = file.ContentType is "image/png" ? ".png" : ".jpg";
-
-        Stream s = Helpers.ResizeImage(file);
-        string md5 = Helpers.GenerateMd5Hash(s);
-
-        BlobClient blob = _blobContainerClient.GetBlobClient(md5 + ext);
-        s.Position = 0;
-        await blob.UploadAsync(s, new BlobHttpHeaders {ContentType = file.ContentType});
-
-        user.Picture = blob.Uri.ToString();
+        user.Picture = await _imageUploadService.UploadImage(file, Enums.BlobContainerName.ProfileImages);
         await UserService.UpdateUser(user);
         return req.CreateResponse(HttpStatusCode.OK);
     }
@@ -206,27 +189,34 @@ public class UserController
             }
         }
 
-        if (loggedInUser!.Role != UserRoleEnum.Admin && target.Id != loggedInUser.Id)
+        if (CheckAuth(loggedInUser, target))
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to edit this user");
         }
 
-
-        if (editUser.Username != loggedInUser.Name && await UserService.GetUserByName(editUser.Username) != null)
+        if (await CheckUsernameOverridden(editUser, loggedInUser))
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That username is already taken.");
         }
 
-        if (editUser.Email != loggedInUser.Email && await UserService.GetUserByEmail(editUser.Email) != null)
+        if (await CheckEmailOverridden(editUser, loggedInUser))
         {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "That email is already taken.");
         }
 
         _mapper.Map(editUser, target);
-        await UserService.UpdateUser(target);
+        try
+        {
+            await UserService.UpdateUser(target);
 
-        var result = _mapper.Map<UserDto>(target);
-        return await req.CreateSuccessResponse(result);
+            var result = _mapper.Map<UserDto>(target);
+            return await req.CreateSuccessResponse(result);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error while updating user");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
 
     [Function(nameof(DeleteUser))]
@@ -238,10 +228,8 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "user/{id}")]
         HttpRequestData req, FunctionContext executionContext,
         string id)
-
     {
-        ClaimsPrincipal? principal = executionContext.GetUser();
-        User? loggedInUser = await UserService.GetUserByName(principal?.Identity?.Name!);
+        User? loggedInUser = await UserService.CheckUserLoggedIn(executionContext.GetUser());
 
         if (loggedInUser is null)
         {
@@ -251,19 +239,28 @@ public class UserController
 
         User? user = await UserService.GetUser(Guid.Parse(id));
 
-        if (user == null)
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
-        }
-
-        if (loggedInUser.Role != UserRoleEnum.Admin && user.Id != loggedInUser.Id)
+        if (CheckAuth(loggedInUser, user))
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You are not authorized to delete other users.");
         }
 
-        // _logger.LogInformation("Deleting user {UserName}", user.Name);
-
-        await UserService.DeleteUser(user.Id);
-        return req.CreateResponse(HttpStatusCode.OK);
+        try
+        {
+            await UserService.DeleteUser(user.Id);
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error while deleting user");
+            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message);
+        }
     }
+
+    private bool CheckAuth(User user, User target) => user!.Role != UserRoleEnum.Admin && target.Id != user.Id;
+
+    private async Task<bool> CheckUsernameOverridden(EditUserDto user, User target) =>
+        user.Username != target.Name && await UserService.GetUserByName(user.Username) != null;
+
+    private async Task<bool> CheckEmailOverridden(EditUserDto user, User target) =>
+        user.Email != target.Email && await UserService.GetUserByEmail(user.Email) != null;
 }

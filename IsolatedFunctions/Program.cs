@@ -1,5 +1,12 @@
 using System.Text.Json;
 using DAL.Data;
+using Domain.Models;
+using FluentValidation;
+using IsolatedFunctions.DTO.CardDTOs;
+using IsolatedFunctions.DTO.GameSessionDTOs;
+using IsolatedFunctions.DTO.SignalDTOs;
+using IsolatedFunctions.DTO.UserDTOs;
+using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker;
@@ -24,10 +31,10 @@ public static class Program
                 configurationBuilder.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
 
-                // if (context.HostingEnvironment.IsDevelopment())
-                // {
-                //     configurationBuilder.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
-                // }
+                if (context.HostingEnvironment.IsDevelopment())
+                {
+                    configurationBuilder.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
+                }
                 // else
                 // {
                 //     configurationBuilder.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true,
@@ -56,6 +63,7 @@ public static class Program
                 builder.Services.AddTransient<ICardService, CardService>();
                 builder.Services.AddTransient<ISessionService, SessionService>();
                 builder.Services.AddTransient<ISessionResponseService, SessionResponseService>();
+                builder.Services.AddTransient<IImageUploadService, ImageUploadService>();
             })
             .ConfigureServices((context, collection) => ConfigureServices(collection, context.Configuration))
             .ConfigureOpenApi()
@@ -72,9 +80,11 @@ public static class Program
                 options.UseSqlServer(configuration.GetConnectionString("SqlConnectionString")))
             .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetSection("AzureWebJobsStorage")); });
 
+        services.AddScoped<IValidator<Card>, CardValidator>();
+        services.AddScoped<IValidator<User>, UserValidator>();
+        services.AddScoped<IValidator<GameSession>, GameSessionValidator>();
+        services.AddScoped<IValidator<SessionResponse>, SessionResponseValidator>();
 
-        // .AddSingleton()
-        // .AddHttpLayer(configuration)
-        // .AddKeyVaultLayer(configuration);
     }
+
 }

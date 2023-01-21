@@ -1,5 +1,6 @@
 ﻿using DAL.Data;
 using Domain.Models;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Services.Interfaces;
 
@@ -8,14 +9,22 @@ namespace Services;
 public class SessionResponseService : ISessionResponseService
 {
     private readonly InnovationGameDbContext _context;
+    private readonly IValidator<SessionResponse> _validator;
 
-    public SessionResponseService(InnovationGameDbContext context)
+    public SessionResponseService(InnovationGameDbContext context, IValidator<SessionResponse> validator)
     {
         _context = context;
+        _validator = validator;
     }
+
 
     public async Task AddSessionResponse(SessionResponse sessionResponse)
     {
+        var validation = await _validator.ValidateAsync(sessionResponse);
+        if (!validation.IsValid)
+        {
+            throw new Exception(validation.Errors[0].ErrorMessage);
+        }
         _context.SessionResponses.Add(sessionResponse);
         await _context.SaveChangesAsync();
     }

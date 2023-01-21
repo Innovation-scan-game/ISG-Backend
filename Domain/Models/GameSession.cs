@@ -29,7 +29,9 @@ public class GameSession
             Id = id,
             Created = DateTime.Now,
             Status = SessionStatus.Lobby,
-            SessionCode = GenerateSessionCode(id)
+            SessionCode = GenerateSessionCode(id),
+            Rounds=3,
+            RoundDurationSeconds=300,
         };
     }
 

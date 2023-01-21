@@ -1,6 +1,7 @@
 ﻿using DAL.Data;
 using Domain.Enums;
 using Domain.Models;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Services.Interfaces;
 
@@ -9,10 +10,13 @@ namespace Services;
 public class SessionService : ISessionService
 {
     private readonly InnovationGameDbContext _context;
+    private readonly IValidator<GameSession> _validator;
 
-    public SessionService(InnovationGameDbContext context)
+    public SessionService(InnovationGameDbContext context, IValidator<GameSession> validator)
+
     {
         _context = context;
+        _validator = validator;
     }
 
     public async Task<GameSession?> GetSessionByJoinCode(string joinCode)
@@ -29,6 +33,12 @@ public class SessionService : ISessionService
 
     public async Task AddSession(GameSession session)
     {
+        var validation = await _validator.ValidateAsync(session);
+        if (!validation.IsValid)
+        {
+            throw new Exception(validation.Errors[0].ErrorMessage);
+        }
+
         _context.GameSessions.Add(session);
         await _context.SaveChangesAsync();
     }

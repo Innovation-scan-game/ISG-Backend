@@ -61,8 +61,6 @@ public class SessionController
         SubmitAnswerDto? dto = await req.ReadFromJsonAsync<SubmitAnswerDto>();
 
 
-
-
         if (dto is null)
         {
             return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest)};
@@ -78,7 +76,15 @@ public class SessionController
             ResponseType = SessionResponseType.Answer
         };
 
-        await SessionResponseService.AddSessionResponse(response);
+        try
+        {
+            await SessionResponseService.AddSessionResponse(response);
+
+        }
+        catch (Exception e)
+        {
+            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message)};
+        }
         UserDto userDto = _mapper.Map<UserDto>(dbUser);
 
         var message = new SignalRMessageAction("newAnswer")
@@ -113,7 +119,6 @@ public class SessionController
 
         var message = new SignalRMessageAction("newMessage")
         {
-            //TODO: Check for NULL
             GroupName = dbUser.CurrentSession!.SessionCode,
             Arguments = new object[] {userDto, dbUser.CurrentSession.CurrentRound, chatMessage!.Message}
         };
@@ -141,7 +146,8 @@ public class SessionController
 
         if (dbUser.CurrentSession is null)
         {
-            return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You are not in a session!")};
+            return new MessageResponse
+                {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, "You are not in a session!")};
         }
 
         // Check if executing user is session host or not
@@ -156,15 +162,22 @@ public class SessionController
         ConclusionDto? dto = await req.ReadFromJsonAsync<ConclusionDto>();
         if (dto != null && !string.IsNullOrEmpty(dto.Conclusion))
         {
-            await SessionResponseService.AddSessionResponse(new SessionResponse
+            try
             {
-                User = dbUser,
-                Session = dbUser.CurrentSession,
-                CreatedAt = DateTime.Now,
-                CardNumber = dbUser.CurrentSession.CurrentRound,
-                Response = dto.Conclusion,
-                ResponseType = SessionResponseType.Conclusion
-            });
+                await SessionResponseService.AddSessionResponse(new SessionResponse
+                {
+                    User = dbUser,
+                    Session = dbUser.CurrentSession,
+                    CreatedAt = DateTime.Now,
+                    CardNumber = dbUser.CurrentSession.CurrentRound,
+                    Response = dto.Conclusion,
+                    ResponseType = SessionResponseType.Conclusion
+                });
+            }
+            catch (Exception e)
+            {
+                return new MessageResponse {UserResponse = await req.CreateErrorResponse(HttpStatusCode.BadRequest, e.Message)};
+            }
         }
 
 
@@ -240,16 +253,7 @@ public class SessionController
             Arguments = new object[] {"end"}
         };
 
-        // Remove all users from session
-        await UserService.GetUsersInSession(dbUser.CurrentSession.Id)
-            .ForEachAsync(usr =>
-            {
-                usr.CurrentSession = null;
-                usr.Ready = false;
-                UserService.UpdateUser(usr);
-            });
-
-
+        await UserService.RemoveUsersFromSession(dbUser.CurrentSession.Id);
         return new MessageResponse {Message = message, UserResponse = req.CreateResponse(HttpStatusCode.OK)};
     }
 
