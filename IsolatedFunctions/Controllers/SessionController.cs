@@ -68,8 +68,8 @@ public class SessionController
 
         SessionResponse response = new()
         {
-            User = dbUser,
-            Session = dbUser.CurrentSession!,
+            UserId = dbUser.Id,
+            SessionId = dbUser.CurrentSession!.Id,
             CreatedAt = DateTime.Now,
             CardNumber = dbUser.CurrentSession!.CurrentRound,
             Response = dto.Answer,
