@@ -59,7 +59,7 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        if (await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
+        if (! await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
@@ -161,12 +161,11 @@ public class UserController
     {
         ClaimsPrincipal? principal = executionContext.GetUser();
 
-        if (principal == null)
+        User? loggedInUser = await UserService.GetUserByName(principal?.Identity!.Name!);
+        if (loggedInUser == null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to change users.");
         }
-
-        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         EditUserDto? editUser = await req.ReadFromJsonAsync<EditUserDto>();
 

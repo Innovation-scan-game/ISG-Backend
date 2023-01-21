@@ -248,7 +248,7 @@ public class CardControllerTests
             Assert.That(editedCard?.Type, Is.EqualTo(CardTypeEnum.Scale));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]

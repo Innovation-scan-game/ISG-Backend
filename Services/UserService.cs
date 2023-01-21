@@ -62,7 +62,8 @@ public class UserService : IUserService {
     }
 
     public async Task<User?> GetUserByName(string name) {
-        return await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == name);
+        var res = await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == name);
+        return res;
     }
 
     public async Task AddUser(User user)
@@ -101,12 +102,12 @@ public class UserService : IUserService {
             throw new Exception("User not found.");
         }
 
+
         var validation = await _validator.ValidateAsync(user);
         if (!validation.IsValid)
         {
             throw new Exception(validation.Errors[0].ErrorMessage);
         }
-
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
     }

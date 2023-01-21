@@ -14,7 +14,6 @@ public class InnovationGameMappingProfile : Profile
         CreateMap<string?, string>().ConvertUsing((src, dest) => src ?? dest);
         CreateMap<string?, Guid>().ConvertUsing(s => String.IsNullOrWhiteSpace(s) ? Guid.Empty : Guid.Parse(s));
         CreateMap<string, Guid>().ConvertUsing(s => Guid.Parse(s));
-
         CreateMap<User, User>();
         CreateMap<UserDto, User>();
         CreateMap<CreateUserDto, User>()
@@ -41,14 +40,21 @@ public class InnovationGameMappingProfile : Profile
                 opt.PreCondition(s => s.Username != "");
                 opt.MapFrom(src => src.Username);
             })
+            .ForMember(dest => dest.Email, opt =>
+            {
+                opt.PreCondition(s => s.Email != "");
+                opt.MapFrom(src => src.Email);
+            })
             .ForMember(dest => dest.Password, opt =>
             {
                 opt.PreCondition(s => s.Password != "");
                 opt.MapFrom(src => BCrypt.Net.BCrypt.HashPassword(src.Password));
             });
 
+        CreateMap<EditCardDto, Card>();
 
-        CreateMap<CreateCardDto, Card>();
+        CreateMap<CreateCardDto, Card>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.NewGuid()));
 
         CreateMap<Card, CardDto>()
             .ForMember(dest => dest.CardName, opt => opt.MapFrom(src => src.Name))

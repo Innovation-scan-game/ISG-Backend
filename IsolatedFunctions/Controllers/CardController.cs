@@ -158,7 +158,7 @@ public class CardController
             string? json = formData.GetParameterValue("json");
             return JsonConvert.DeserializeObject<T>(json);
         }
-        catch (ArgumentNullException)
+        catch (Exception)
         {
             return default;
         }

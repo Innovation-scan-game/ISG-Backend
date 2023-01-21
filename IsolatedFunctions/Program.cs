@@ -2,10 +2,6 @@ using System.Text.Json;
 using DAL.Data;
 using Domain.Models;
 using FluentValidation;
-using IsolatedFunctions.DTO.CardDTOs;
-using IsolatedFunctions.DTO.GameSessionDTOs;
-using IsolatedFunctions.DTO.SignalDTOs;
-using IsolatedFunctions.DTO.UserDTOs;
 using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Infrastructure;
 using IsolatedFunctions.Security;
@@ -59,11 +55,11 @@ public static class Program
                 builder.Services.AddOptions<JsonSerializerOptions>()
                     .Configure(options => options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
 
-                builder.Services.AddTransient<IUserService, UserService>();
-                builder.Services.AddTransient<ICardService, CardService>();
-                builder.Services.AddTransient<ISessionService, SessionService>();
-                builder.Services.AddTransient<ISessionResponseService, SessionResponseService>();
-                builder.Services.AddTransient<IImageUploadService, ImageUploadService>();
+                builder.Services.AddScoped<IUserService, UserService>();
+                builder.Services.AddScoped<ICardService, CardService>();
+                builder.Services.AddScoped<ISessionService, SessionService>();
+                builder.Services.AddScoped<ISessionResponseService, SessionResponseService>();
+                builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
             })
             .ConfigureServices((context, collection) => ConfigureServices(collection, context.Configuration))
             .ConfigureOpenApi()
@@ -77,14 +73,15 @@ public static class Program
         services
             .AddLogging()
             .AddDbContext<InnovationGameDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("SqlConnectionString")))
-            .AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetSection("AzureWebJobsStorage")); });
+            {
+                options.UseSqlServer(configuration.GetConnectionString("SqlConnectionString"));
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+
+            }).AddAzureClients(bld => { bld.AddBlobServiceClient(configuration.GetSection("AzureWebJobsStorage")); });
 
         services.AddScoped<IValidator<Card>, CardValidator>();
         services.AddScoped<IValidator<User>, UserValidator>();
         services.AddScoped<IValidator<GameSession>, GameSessionValidator>();
         services.AddScoped<IValidator<SessionResponse>, SessionResponseValidator>();
-
     }
-
 }
