@@ -49,18 +49,18 @@ public class UserController
     }
 
     [Function(nameof(GetAllUsers))]
-    [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
+    [OpenApiOperation(operationId: "GetUsers", tags: new[] { "user" }, Summary = "Get all Users",
         Description = "Get a list of all users created")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "List of all users")]
     public async Task<HttpResponseData> GetAllUsers(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")]
         HttpRequestData req, FunctionContext executionContext)
-   
+
     {
         _logger.LogInformation($"{executionContext.GetUser()?.Identity?.Name ?? "Someone"} attempted to obtain all users.");
-        if (! await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
-       
+        if (!await UserService.CheckUserAllowAdminChange(executionContext.GetUser()!))
+
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
 
         var users = await UserService.GetAllUsers();
@@ -71,7 +71,7 @@ public class UserController
     }
 
     [Function(nameof(GetUserById))]
-    [OpenApiOperation(operationId: "GetUserId", tags: new[] {"user"}, Summary = "Get user by Id",
+    [OpenApiOperation(operationId: "GetUserId", tags: new[] { "user" }, Summary = "Get user by Id",
         Description = "Get a users by ID")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The requested User")]
@@ -96,7 +96,7 @@ public class UserController
 
     [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
-    [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Create a new user",
+    [OpenApiOperation(operationId: "CreateUser", tags: new[] { "user" }, Summary = "Create a new user",
         Description = "Creates a new user based on the data given")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(UserDto), Summary = "The created user",
         Description = "The created user")]
@@ -108,11 +108,9 @@ public class UserController
         _logger.LogInformation($"Trying to create user: {createUserDto?.Username ?? "[Invalid]"}.");
 
         if (createUserDto is null)
-        {
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid request.");
 
-        User user = _mapper.Map<User>(createUserDto);
-
+        var user = _mapper.Map<User>(createUserDto);
 
         try
         {
@@ -127,7 +125,7 @@ public class UserController
     }
 
     [Function(nameof(UploadAvatar))]
-    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] {"user"}, Summary = "upload a avatar",
+    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] { "user" }, Summary = "upload a avatar",
         Description = "Upload a avatar to the user ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The uploaded avatar")]
@@ -135,9 +133,8 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/avatar")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        User? user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
+        var user = await UserService.GetUserByName(executionContext.GetUser()?.Identity?.Name!);
         if (user is null)
-        {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in.");
 
         var body = await MultipartFormDataParser.ParseAsync(req.Body);
@@ -162,15 +159,11 @@ public class UserController
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user")]
         HttpRequestData req, FunctionContext executionContext)
     {
-        ClaimsPrincipal? principal = executionContext.GetUser();
+        var principal = executionContext.GetUser();
 
-        User? loggedInUser = await UserService.GetUserByName(principal?.Identity!.Name!);
+        var loggedInUser = await UserService.GetUserByName(principal?.Identity!.Name!);
         if (loggedInUser == null)
-        {
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to change users.");
-        }
-
-        User? loggedInUser = await UserService.GetUserByName(principal.Identity!.Name!);
 
         var editUser = await req.ReadFromJsonAsync<EditUserDto>();
 
@@ -212,7 +205,7 @@ public class UserController
     }
 
     [Function(nameof(DeleteUser))]
-    [OpenApiOperation(operationId: "DeleteUser", tags: new[] {"user"}, Summary = "Delete the given user",
+    [OpenApiOperation(operationId: "DeleteUser", tags: new[] { "user" }, Summary = "Delete the given user",
         Description = "deletes a user by ID")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The deleted user")]
@@ -248,7 +241,7 @@ public class UserController
         }
     }
 
-    private bool CheckAuth(User user, User target) => user!.Role != UserRoleEnum.Admin && target.Id != user.Id;
+    private static bool CheckAuth(User user, User target) => user!.Role != UserRoleEnum.Admin && target.Id != user.Id;
 
     private async Task<bool> CheckUsernameOverridden(EditUserDto user, User target) =>
         user.Username != target.Name && await UserService.GetUserByName(user.Username) != null;

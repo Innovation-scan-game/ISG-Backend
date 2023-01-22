@@ -15,7 +15,7 @@ public class UserService : IUserService
     private readonly IValidator<User> _validator;
 
     public UserService(InnovationGameDbContext context, IValidator<User> validator)
- {
+    {
         _context = context;
         _validator = validator;
     }
@@ -69,23 +69,18 @@ public class UserService : IUserService
         return await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Email == email);
     }
 
-    public async Task<User?> GetUserByName(string name) {
+    public async Task<User?> GetUserByName(string name)
+    {
         var res = await _context.Users.Include(usr => usr.CurrentSession).FirstOrDefaultAsync(u => u.Name == name);
         return res;
     }
 
     public async Task AddUser(User user)
     {
-        if (await GetUserByEmail(user.Email) != null)
-        {
-            throw new Exception("Email already exists");
-        }
+        if (await GetUserByEmail(user.Email) != null) throw new Exception("Email already exists");
 
         var validation = await _validator.ValidateAsync(user);
-        if (!validation.IsValid)
-        {
-            throw new Exception(validation.Errors[0].ErrorMessage);
-        }
+        if (!validation.IsValid) throw new Exception(validation.Errors[0].ErrorMessage);
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -95,28 +90,18 @@ public class UserService : IUserService
     {
         var user = _context.Users.FirstOrDefault(u => u.Id == id);
 
-        if (user is not null)
-        {
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            return;
-        }
-
-        throw new Exception("User not found.");
+        if (user is null) throw new Exception("User not found.");
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateUser(User user)
     {
-        if (await GetUser(user.Id) is null)
-        {
-            throw new Exception("User not found.");
-        }
+        if (await GetUser(user.Id) is null) throw new Exception("User not found.");
 
         var validation = await _validator.ValidateAsync(user);
-        if (!validation.IsValid)
-        {
-            throw new Exception(validation.Errors[0].ErrorMessage);
-        }
+        if (!validation.IsValid) throw new Exception(validation.Errors[0].ErrorMessage);
+
         _context.ChangeTracker.Clear();
 
         _context.Users.Update(user);
