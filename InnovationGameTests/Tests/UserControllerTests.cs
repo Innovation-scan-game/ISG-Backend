@@ -39,6 +39,7 @@ public class UserControllerTests
             .Options;
 
         _context = new InnovationGameDbContext(options);
+        _imageUploadService = new ImageUploadService(new Mock<BlobServiceClient>().Object);
 
         _admin = new User
         {
