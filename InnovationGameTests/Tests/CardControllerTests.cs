@@ -7,6 +7,7 @@ using Domain.Models;
 using IsolatedFunctions.Controllers;
 using IsolatedFunctions.DTO.CardDTOs;
 using IsolatedFunctions.DTO.UserDTOs;
+using IsolatedFunctions.DTO.Validators;
 using IsolatedFunctions.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -50,7 +51,7 @@ public class CardControllerTests
         Mock<BlobServiceClient> blob = new Mock<BlobServiceClient>();
 
         IMapper mapper = MockHelpers.CreateMapper();
-        _cardController = new CardController(mapper, new CardService(_context), new UserService(_context), new ImageUploadService(blob.Object));
+        _cardController = new CardController(mapper, new CardService(_context, new CardValidator() ), new UserService(_context, new UserValidator()), new ImageUploadService(blob.Object));
         _token = await MockHelpers.GetLoginToken("admin", "password");
 
         TokenService tokenService = new TokenService(null!, new Mock<ILogger<TokenService>>().Object);
@@ -78,6 +79,9 @@ public class CardControllerTests
         };
 
         string json = JsonConvert.SerializeObject(createCardDto);
+
+
+
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData(json, _token);
 
@@ -222,7 +226,7 @@ public class CardControllerTests
         // Create EditCardDto to create changes to an already existing card
         EditCardDto editCardDto = new EditCardDto
         {
-            Id = cardToEdit.Id.ToString(),
+            Id = cardToEdit.Id,
             Name = "CardNameChanged",
             Body = "CardBodyChanged",
             Type = 1,
@@ -247,7 +251,7 @@ public class CardControllerTests
             Assert.That(editedCard?.Type, Is.EqualTo(CardTypeEnum.Scale));
         }
 
-        await _middleware!.Invoke(req.FunctionContext, Next);
+        await _middleware.Invoke(req.FunctionContext, Next);
     }
 
     [Test]
@@ -256,7 +260,7 @@ public class CardControllerTests
         // Create EditCardDto to edit a card with an unknown ID
         EditCardDto editCardDto = new EditCardDto
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             Name = "CardNameChanged",
             Body = "CardBodyChanged",
             Type = 1,

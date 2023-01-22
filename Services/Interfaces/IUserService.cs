@@ -14,5 +14,6 @@ public interface IUserService {
     IQueryable<User> GetUsersInSession(Guid sessionId);
     Task<User?> GetExistingUser(string username, string email);
     Task<bool> CheckUserAllowAdminChange(ClaimsPrincipal principal);
-    Task<User?> CheckUserLoggedIn(ClaimsPrincipal? principal);
+    Task<User?> CheckUserLoggedIn(ClaimsPrincipal principal);
+    Task RemoveUsersFromSession(Guid currentSessionId);
 }
