@@ -220,7 +220,7 @@ public class UserController
         if (loggedInUser is null)
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to delete users.");
 
-        if (Guid.TryParse(id, out var userId))
+        if (!Guid.TryParse(id, out var userId))
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Not a valid guid.");
         var user = await UserService.GetUser(userId);
 
