@@ -14,6 +14,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using NUnit.Framework;
 using Services;
 
 namespace InnovationGameTests.Tests;

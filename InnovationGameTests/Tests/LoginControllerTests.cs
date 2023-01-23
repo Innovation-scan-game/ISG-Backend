@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
+using NUnit.Framework;
 using Services;
 
 namespace InnovationGameTests.Tests;
