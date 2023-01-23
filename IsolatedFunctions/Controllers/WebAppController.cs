@@ -38,12 +38,14 @@ public class WebAppController
 
     [Function(nameof(Cms))]
     public async Task<HttpResponseData> Cms(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cmsold/{*route}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cms/{*route}")]
         HttpRequestData req, string route)
     {
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteStringAsync(await File.ReadAllTextAsync("webapp/cms/index.html"));
-        response.Headers.Add("Content-Type", "text/html");
-        return response;
+        BlobClient? blob = _blobContainerClient.GetBlobClient("cms/index.html");
+        if (await blob.ExistsAsync())
+        {
+            return await req.CreateFileResponse(blob);
+        }
+        return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Not found");
     }
 }
