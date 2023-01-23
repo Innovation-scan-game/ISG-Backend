@@ -163,7 +163,7 @@ public class UserControllerTests
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
         // Call the controller endpoint using the ID of the user created during the setup
-        var res = await _userController.GetUserById(req, _user.Id.ToString());
+        var res = await _userController.GetUserById(req, _user.Id);
         // Retrieve the suer
         res.Body.Position = 0;
         UserDto result = JsonConvert.DeserializeObject<UserDto>(await new StreamReader(res.Body).ReadToEndAsync());
@@ -180,7 +180,7 @@ public class UserControllerTests
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
         // Call the controller endpoint using an unknown user Guid
-        var res = await _userController.GetUserById(req, Guid.NewGuid().ToString());
+        var res = await _userController.GetUserById(req, Guid.NewGuid());
         // Retrieve user
         res.Body.Position = 0;
         UserDto result = JsonConvert.DeserializeObject<UserDto>(await new StreamReader(res.Body).ReadToEndAsync());
@@ -359,7 +359,7 @@ public class UserControllerTests
             // Assert that the user has been added to the test db
             Assert.That(_context.Users.Count(), Is.EqualTo(3));
             // Call the controller endpoint with the userToDelete ID
-            HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id.ToString());
+            HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id);
             // Assert that the response is OK and that the user has been deleted
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(_context.Users.Count(), Is.EqualTo(2));
@@ -390,7 +390,7 @@ public class UserControllerTests
         async Task Next(FunctionContext context)
         {
             // Call the controller endpoint using userToDelte ID
-            HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id.ToString());
+            HttpResponseData response = await _userController.DeleteUser(req, req.FunctionContext, userToDelete.Id);
             // Assert that the response is Unauthorized, because no admin was logged in
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
             Assert.That(_context.Users.Count(), Is.EqualTo(3));

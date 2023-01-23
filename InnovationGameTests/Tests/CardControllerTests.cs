@@ -181,7 +181,7 @@ public class CardControllerTests
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
         // Call the controller endpoint using the ID of the newly created card
-        var res = await _cardController.GetCardById(req, newCard.Id.ToString());
+        var res = await _cardController.GetCardById(req, newCard.Id);
 
         // Retrieve the card
         res.Body.Position = 0;
@@ -200,7 +200,7 @@ public class CardControllerTests
         // Forge a request
         HttpRequestData req = MockHelpers.CreateHttpRequestData();
         // Call the controller endpoint with unknown ID
-        var res = await _cardController.GetCardById(req, Guid.NewGuid().ToString());
+        var res = await _cardController.GetCardById(req, Guid.NewGuid());
 
         // Retrieve the card
         res.Body.Position = 0;
@@ -306,7 +306,7 @@ public class CardControllerTests
             // Assert that the cardToDelete has been added to our test db
             Assert.That(_context.Cards.Count(), Is.EqualTo(2));
             // Call the controller endpoint
-            HttpResponseData res = await _cardController.DeleteCard(req, ctx, cardToDelete.Id.ToString());
+            HttpResponseData res = await _cardController.DeleteCard(req, ctx, cardToDelete.Id);
 
             // Assert that the response is OK and that the card is deleted.
             Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -324,7 +324,7 @@ public class CardControllerTests
         await _middleware.Invoke(req.FunctionContext, async (ctx) =>
         {
             // Call the controller endpoint with new Guid ID
-            HttpResponseData res = await _cardController.DeleteCard(req, ctx, Guid.NewGuid().ToString());
+            HttpResponseData res = await _cardController.DeleteCard(req, ctx, Guid.NewGuid());
 
             // Assert that the response is NotFound.
             Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));

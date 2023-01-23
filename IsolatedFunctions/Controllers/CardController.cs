@@ -52,9 +52,9 @@ public class CardController
         Description = "The Requested Card")]
     public async Task<HttpResponseData> GetCardById(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "cards/{id}")]
-        HttpRequestData req, string id)
+        HttpRequestData req, Guid id)
     {
-        Card? card = await CardService.GetCardById(Guid.Parse(id));
+        Card? card = await CardService.GetCardById(id);
 
         if (card == null)
         {
@@ -72,7 +72,7 @@ public class CardController
     public async Task<HttpResponseData> DeleteCard(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "cards/{id}")]
         HttpRequestData req,
-        FunctionContext executionContext, string id)
+        FunctionContext executionContext, Guid id)
     {
         ClaimsPrincipal? user = executionContext.GetUser();
         User? dbUser = await UserService.GetUserByName(user?.Identity?.Name!);
@@ -81,12 +81,8 @@ public class CardController
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized);
         }
 
-        if (!Guid.TryParse(id, out Guid cardId))
-        {
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid card id!");
-        }
 
-        Card? card = await CardService.GetCardById(cardId);
+        Card? card = await CardService.GetCardById(id);
         if (card is null)
         {
             return await req.CreateErrorResponse(HttpStatusCode.NotFound, "Card not found!");

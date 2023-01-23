@@ -49,7 +49,7 @@ public class UserController
     }
 
     [Function(nameof(GetAllUsers))]
-    [OpenApiOperation(operationId: "GetUsers", tags: new[] { "user" }, Summary = "Get all Users",
+    [OpenApiOperation(operationId: "GetUsers", tags: new[] {"user"}, Summary = "Get all Users",
         Description = "Get a list of all users created")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "List of all users")]
@@ -71,21 +71,18 @@ public class UserController
     }
 
     [Function(nameof(GetUserById))]
-    [OpenApiOperation(operationId: "GetUserId", tags: new[] { "user" }, Summary = "Get user by Id",
+    [OpenApiOperation(operationId: "GetUserId", tags: new[] {"user"}, Summary = "Get user by Id",
         Description = "Get a users by ID")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The requested User")]
     public async Task<HttpResponseData> GetUserById(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/{id}")]
         HttpRequestData req,
-        string id)
+        Guid id)
     {
         _logger.LogInformation($"User requested: {id}");
-        User? user;
-        if (Guid.TryParse(id, out var userId))
-            user = await UserService.GetUser(userId);
-        else
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Not a valid id.");
+        User? user = await UserService.GetUser(id);
+
 
         if (user == null)
             return await req.CreateErrorResponse(HttpStatusCode.NotFound, "User not found.");
@@ -96,7 +93,7 @@ public class UserController
 
     [Function(nameof(CreateUser))]
     [OpenApiRequestBody("application/json", typeof(CreateUserDto), Required = true)]
-    [OpenApiOperation(operationId: "CreateUser", tags: new[] { "user" }, Summary = "Create a new user",
+    [OpenApiOperation(operationId: "CreateUser", tags: new[] {"user"}, Summary = "Create a new user",
         Description = "Creates a new user based on the data given")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(UserDto), Summary = "The created user",
         Description = "The created user")]
@@ -125,7 +122,7 @@ public class UserController
     }
 
     [Function(nameof(UploadAvatar))]
-    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] { "user" }, Summary = "upload a avatar",
+    [OpenApiOperation(operationId: "UploadAvatar", tags: new[] {"user"}, Summary = "upload a avatar",
         Description = "Upload a avatar to the user ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The uploaded avatar")]
@@ -151,10 +148,10 @@ public class UserController
     }
 
     [Function(nameof(UpdateUser))]
-    [OpenApiOperation(operationId: "UpdateUser", tags: new[] { "user" }, Summary = "Update an existing user",
+    [OpenApiOperation(operationId: "UpdateUser", tags: new[] {"user"}, Summary = "Update an existing user",
         Description = "Updates a user ")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
-                Description = "the updated user")]
+        Description = "the updated user")]
     public async Task<HttpResponseData> UpdateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user")]
         HttpRequestData req, FunctionContext executionContext)
@@ -205,14 +202,14 @@ public class UserController
     }
 
     [Function(nameof(DeleteUser))]
-    [OpenApiOperation(operationId: "DeleteUser", tags: new[] { "user" }, Summary = "Delete the given user",
+    [OpenApiOperation(operationId: "DeleteUser", tags: new[] {"user"}, Summary = "Delete the given user",
         Description = "deletes a user by ID")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(UserDto),
         Description = "The deleted user")]
     public async Task<HttpResponseData> DeleteUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "user/{id}")]
         HttpRequestData req, FunctionContext executionContext,
-        string id)
+        Guid id)
     {
         _logger.LogInformation($"{executionContext.GetUser()?.Identity?.Name ?? "Unknown user"} being deleted.");
         var loggedInUser = await UserService.CheckUserLoggedIn(executionContext.GetUser());
@@ -220,9 +217,8 @@ public class UserController
         if (loggedInUser is null)
             return await req.CreateErrorResponse(HttpStatusCode.Unauthorized, "You need to be logged in to delete users.");
 
-        if (!Guid.TryParse(id, out var userId))
-            return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "Not a valid guid.");
-        var user = await UserService.GetUser(userId);
+
+        var user = await UserService.GetUser(id);
 
         if (user == null)
             return await req.CreateErrorResponse(HttpStatusCode.BadRequest, "User not found");
