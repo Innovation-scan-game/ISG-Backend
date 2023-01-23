@@ -12,7 +12,6 @@ using IsolatedFunctions.Outputs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Microsoft.EntityFrameworkCore;
 using Services.Interfaces;
 
 namespace IsolatedFunctions.Controllers;
